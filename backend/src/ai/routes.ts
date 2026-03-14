@@ -7,11 +7,18 @@ import {
   WebGameGenerationValidationError,
   WebGameValidationTimeoutError,
 } from "./gen_engine/verified-webgame.service.js";
+import { GameGenerationWorkflowService } from "./game_generation/service.js";
+import {
+  StorytellingEngineService,
+  StorytellingUserNotFoundError,
+} from "./storytelling_engine/service.js";
 
 type AIRoutesOptions = {
   apiKey: string;
   genEngineService?: GenEngineService;
   verifiedWebGameService?: VerifiedWebGameService;
+  storytellingEngineService?: StorytellingEngineService;
+  gameGenerationWorkflowService?: GameGenerationWorkflowService;
 };
 
 const DEFAULT_WEBGAME_SIZE = 640;
@@ -26,6 +33,15 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
     options.verifiedWebGameService ??
     new VerifiedWebGameService({
       genEngineService,
+    });
+  const storytellingEngineService =
+    options.storytellingEngineService ??
+    new StorytellingEngineService({ apiKey: options.apiKey });
+  const gameGenerationWorkflowService =
+    options.gameGenerationWorkflowService ??
+    new GameGenerationWorkflowService({
+      storytellingEngineService,
+      verifiedWebGameService,
     });
 
   router.post("/gen_engine", async (req: Request, res: Response) => {
@@ -100,6 +116,97 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
 
       logError("ai_gen_engine_webgame_route_error", error, { traceId });
       return res.status(500).json({ error: "Failed to generate webgame HTML", traceId });
+    }
+  });
+
+  router.post("/storytelling_engine/game-concept", async (req: Request, res: Response) => {
+    const userId = req.body?.userId;
+    if (!userId || typeof userId !== "string") {
+      return res.status(400).json({ error: "Missing userId in request body" });
+    }
+
+    try {
+      logInfo("ai_storytelling_engine_request_received", { userId });
+      const description =
+        await storytellingEngineService.generatePersonalizedRetroGameDescription(
+          userId,
+        );
+      return res.type("text/plain").send(description);
+    } catch (error) {
+      if (error instanceof StorytellingUserNotFoundError) {
+        return res.status(404).json({ error: error.message });
+      }
+
+      logError("ai_storytelling_engine_route_error", error, { userId });
+      return res
+        .status(500)
+        .json({ error: "Failed to generate personalized game concept" });
+    }
+  });
+
+  router.post("/game-generation", async (req: Request, res: Response) => {
+    const traceId = randomUUID();
+    const userId = req.body?.userId;
+
+    if (!userId || typeof userId !== "string") {
+      return res.status(400).json({
+        error: "Missing userId in request body",
+        traceId,
+      });
+    }
+
+    const sizeValidation = parseWebgameSize(req.body?.size);
+    if (!sizeValidation.ok) {
+      return res.status(400).json({
+        error: sizeValidation.error,
+        traceId,
+      });
+    }
+
+    try {
+      logInfo("ai_game_generation_workflow_request_received", {
+        traceId,
+        userId,
+        size: sizeValidation.size,
+      });
+
+      const workflowResult =
+        await gameGenerationWorkflowService.generateAndStoreGameForUser({
+          userId,
+          size: sizeValidation.size,
+          traceId,
+        });
+
+      return res.json(workflowResult);
+    } catch (error) {
+      if (error instanceof StorytellingUserNotFoundError) {
+        return res.status(404).json({ error: error.message, traceId });
+      }
+
+      if (error instanceof WebGameGenerationValidationError) {
+        return res.status(422).json({
+          error: "Generated webgame did not pass runtime validation",
+          traceId,
+          attempts: error.attempts,
+          latestErrorSummary: error.errorSummary,
+        });
+      }
+
+      if (error instanceof WebGameValidationTimeoutError) {
+        return res.status(504).json({
+          error: "Webgame validation timed out",
+          traceId,
+          timeoutMs: error.timeoutMs,
+          phase: error.phase,
+          hint: "Increase GEN_ENGINE_TOTAL_TIMEOUT_MS for larger generations.",
+        });
+      }
+
+      logError("ai_game_generation_workflow_route_error", error, { traceId, userId });
+      return res.status(500).json({
+        error: "Failed to generate and store game",
+        traceId,
+      });
     }
   });
 

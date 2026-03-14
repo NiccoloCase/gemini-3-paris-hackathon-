@@ -1,0 +1,22 @@
+{
+  "fields": [
+    {
+      "type": "vector",
+      "path": "embedding",
+      "numDimensions": 1536,
+      "similarity": "cosine"
+    },
+    {
+      "type": "filter",
+      "path": "chunk_type"
+    },
+    {
+      "type": "filter",
+      "path": "game_modes"
+    },
+    {
+      "type": "filter",
+      "path": "platforms"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
-
 google-genai
-pymongo
 internetarchive
 moviepy
+notebook
 pandas
+pymongo
 python-dotenv
