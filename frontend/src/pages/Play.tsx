@@ -117,7 +117,7 @@ loop();
 
 export default function PlayPage() {
   const { updateStatus } = useLobby();
-  const { gameHtml: storedHtml, gameName } = useApp();
+  const { gameHtml: storedHtml, gameName, gameBackgroundUrl } = useApp();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -126,9 +126,21 @@ export default function PlayPage() {
   }, []);
 
   const gameHtml = storedHtml || PLACEHOLDER_GAME_HTML;
+  const hasGeneratedBackground = Boolean(gameBackgroundUrl);
 
   return (
-    <div className="h-screen bg-black flex items-center justify-center overflow-hidden">
+    <div
+      className="h-screen bg-black flex items-center justify-center overflow-hidden"
+      style={
+        hasGeneratedBackground
+          ? {
+              backgroundImage: `linear-gradient(rgba(0,0,0,0.65), rgba(0,0,0,0.65)), url(${gameBackgroundUrl})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }
+          : undefined
+      }
+    >
       {/* Arcade cabinet */}
       <motion.div
         initial={{ opacity: 0, scale: 0.9 }}

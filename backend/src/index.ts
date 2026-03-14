@@ -1,5 +1,6 @@
 import express, { Request, Response } from "express";
 import { createServer } from "node:http";
+import path from "node:path";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { logError, logInfo } from "./core/logger.js";
@@ -19,6 +20,13 @@ app.use((req, res, next) => {
   next();
 });
 app.use(express.json());
+app.use(
+  "/assets",
+  express.static(path.resolve(process.cwd(), "public"), {
+    maxAge: "30d",
+    immutable: true,
+  }),
+);
 app.use((req, res, next) => {
   const startedAt = Date.now();
   res.on("finish", () => {

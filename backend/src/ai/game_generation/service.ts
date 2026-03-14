@@ -1,11 +1,16 @@
 import { GeneratedGameModel, createGeneratedGameModel } from "./model.js";
 import { VerifiedWebGameService } from "../gen_engine/verified-webgame.service.js";
 import { StorytellingEngineService } from "../storytelling_engine/service.js";
-import { logInfo } from "../../core/logger.js";
+import {
+  BackgroundGenerationService,
+  GeneratedBackgroundAsset,
+} from "../background_generation/service.js";
+import { logError, logInfo } from "../../core/logger.js";
 
 type GameGenerationWorkflowServiceOptions = {
   storytellingEngineService: StorytellingEngineService;
   verifiedWebGameService: VerifiedWebGameService;
+  backgroundGenerationService?: BackgroundGenerationService;
   generatedGameModel?: GeneratedGameModel;
 };
 
@@ -21,6 +26,7 @@ export type GenerateAndStoreGameForUserResult = {
   userId: string;
   gameDescription: string;
   html: string;
+  backgroundImageUrl: string | null;
   size: number;
   model: string;
   attempts: number;
@@ -30,11 +36,13 @@ export type GenerateAndStoreGameForUserResult = {
 export class GameGenerationWorkflowService {
   private readonly storytellingEngineService: StorytellingEngineService;
   private readonly verifiedWebGameService: VerifiedWebGameService;
+  private readonly backgroundGenerationService: BackgroundGenerationService | null;
   private readonly generatedGameModel: GeneratedGameModel;
 
   constructor(options: GameGenerationWorkflowServiceOptions) {
     this.storytellingEngineService = options.storytellingEngineService;
     this.verifiedWebGameService = options.verifiedWebGameService;
+    this.backgroundGenerationService = options.backgroundGenerationService ?? null;
     this.generatedGameModel = options.generatedGameModel ?? createGeneratedGameModel();
   }
 
@@ -78,27 +86,51 @@ export class GameGenerationWorkflowService {
         gameDescriptionLength: gameDescription.length,
       });
 
-      phase = "webgame_generation";
-      const webGameStartedAt = Date.now();
-      logInfo("ai_game_generation_webgame_started", {
+      phase = "asset_generation";
+      const generationStartedAt = Date.now();
+      logInfo("ai_game_generation_assets_started", {
         traceId: params.traceId,
         userId: params.userId,
         size: params.size,
+        backgroundEnabled: Boolean(this.backgroundGenerationService),
       });
 
-      const generatedWebGame =
-        await this.verifiedWebGameService.generateVerifiedWebGame({
-          gameDescription,
-          size: params.size,
-          traceId: params.traceId,
-        });
+      const webGamePromise = this.verifiedWebGameService.generateVerifiedWebGame({
+        gameDescription,
+        size: params.size,
+        traceId: params.traceId,
+      });
 
-      logInfo("ai_game_generation_webgame_completed", {
+      const backgroundPromise: Promise<GeneratedBackgroundAsset | null> =
+        this.backgroundGenerationService
+          ? this.backgroundGenerationService
+              .generateAndStoreBackground({
+                userId: params.userId,
+                traceId: params.traceId,
+                gameDescription,
+              })
+              .catch((error) => {
+                logError("ai_game_generation_background_failed", error, {
+                  traceId: params.traceId,
+                  userId: params.userId,
+                });
+                return null;
+              })
+          : Promise.resolve(null);
+
+      const [generatedWebGame, generatedBackground] = await Promise.all([
+        webGamePromise,
+        backgroundPromise,
+      ]);
+
+      logInfo("ai_game_generation_assets_completed", {
         traceId: params.traceId,
         userId: params.userId,
-        durationMs: Date.now() - webGameStartedAt,
+        durationMs: Date.now() - generationStartedAt,
         attempts: generatedWebGame.attempts,
         htmlLength: generatedWebGame.html.length,
+        backgroundGenerated: Boolean(generatedBackground),
+        backgroundUrl: generatedBackground?.publicUrl,
       });
 
       phase = "db_persist";
@@ -113,6 +145,7 @@ export class GameGenerationWorkflowService {
         userId: params.userId,
         gameDescription,
         html: generatedWebGame.html,
+        backgroundImageUrl: generatedBackground?.publicUrl ?? null,
         size: generatedWebGame.size,
         model: generatedWebGame.model,
         attempts: generatedWebGame.attempts,
@@ -140,6 +173,7 @@ export class GameGenerationWorkflowService {
         userId: params.userId,
         gameDescription,
         html: generatedWebGame.html,
+        backgroundImageUrl: generatedBackground?.publicUrl ?? null,
         size: generatedWebGame.size,
         model: generatedWebGame.model,
         attempts: generatedWebGame.attempts,

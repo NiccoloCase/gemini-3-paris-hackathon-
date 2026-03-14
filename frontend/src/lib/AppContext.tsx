@@ -7,6 +7,7 @@ interface AppState {
   userId: string;
   gameHtml: string;
   gameName: string;
+  gameBackgroundUrl: string;
   onboardingAnswers: string[];
   setLoggedIn: (v: boolean) => void;
   setOnboarded: (v: boolean) => void;
@@ -14,6 +15,7 @@ interface AppState {
   setUserId: (v: string) => void;
   setGameHtml: (v: string) => void;
   setGameName: (v: string) => void;
+  setGameBackgroundUrl: (v: string) => void;
   addAnswer: (a: string) => void;
   resetAnswers: () => void;
   logout: () => void;
@@ -49,6 +51,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [userId, _setUserId] = useState(cached?.userId ?? '');
   const [gameHtml, setGameHtml] = useState('');
   const [gameName, setGameName] = useState('');
+  const [gameBackgroundUrl, setGameBackgroundUrl] = useState('');
   const [onboardingAnswers, setAnswers] = useState<string[]>([]);
 
   const persist = useCallback((patch: Partial<{ username: string; isLoggedIn: boolean; isOnboarded: boolean; userId: string }>) => {
@@ -76,13 +79,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     _setUserId('');
     setGameHtml('');
     setGameName('');
+    setGameBackgroundUrl('');
     setAnswers([]);
   }, []);
 
   return (
     <AppContext.Provider value={{
-      isLoggedIn, isOnboarded, username, userId, gameHtml, gameName, onboardingAnswers,
-      setLoggedIn, setOnboarded, setUsername, setUserId, setGameHtml, setGameName,
+      isLoggedIn, isOnboarded, username, userId, gameHtml, gameName, gameBackgroundUrl, onboardingAnswers,
+      setLoggedIn, setOnboarded, setUsername, setUserId, setGameHtml, setGameName, setGameBackgroundUrl,
       addAnswer, resetAnswers, logout,
     }}>
       {children}

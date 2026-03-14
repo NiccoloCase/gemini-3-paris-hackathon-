@@ -13,7 +13,7 @@ const STEPS = [
 
 export default function GeneratingPage() {
   const navigate = useNavigate();
-  const { userId, setGameHtml, setGameName } = useApp();
+  const { userId, setGameHtml, setGameName, setGameBackgroundUrl } = useApp();
   const [currentStep, setCurrentStep] = useState(0);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
@@ -60,6 +60,7 @@ export default function GeneratingPage() {
         const data = await res.json();
         setGameHtml(data.html);
         setGameName(data.gameDescription?.split('\n')[0]?.slice(0, 60) || 'Your Game');
+        setGameBackgroundUrl(data.backgroundImageUrl || '');
         setCurrentStep(STEPS.length);
         setTimeout(() => { if (!cancelled) setDone(true); }, 600);
       } catch {

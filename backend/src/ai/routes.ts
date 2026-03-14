@@ -12,6 +12,7 @@ import {
   StorytellingEngineService,
   StorytellingUserNotFoundError,
 } from "./storytelling_engine/service.js";
+import { BackgroundGenerationService } from "./background_generation/service.js";
 
 type AIRoutesOptions = {
   apiKey: string;
@@ -38,11 +39,15 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
   const storytellingEngineService =
     options.storytellingEngineService ??
     new StorytellingEngineService({ apiKey: options.apiKey });
+  const backgroundGenerationService = new BackgroundGenerationService({
+    apiKey: options.apiKey,
+  });
   const gameGenerationWorkflowService =
     options.gameGenerationWorkflowService ??
     new GameGenerationWorkflowService({
       storytellingEngineService,
       verifiedWebGameService,
+      backgroundGenerationService,
     });
 
   router.use("/chat", createChatRoutes({ apiKey: options.apiKey }));

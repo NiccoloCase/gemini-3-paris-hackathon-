@@ -8,6 +8,7 @@ const generatedGameSchema = new Schema<GeneratedGameRecord>(
     userId: { type: String, required: true, index: true },
     gameDescription: { type: String, required: true },
     html: { type: String, required: true },
+    backgroundImageUrl: { type: String, required: false, default: null },
     size: { type: Number, required: true },
     model: { type: String, required: true },
     attempts: { type: Number, required: true },

@@ -16,6 +16,10 @@ export default defineConfig(({ mode }) => ({
         target: "http://localhost:3000",
         changeOrigin: true,
       },
+      "/assets": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      },
     },
   },
   plugins: [react(), mode === "development" && componentTagger()].filter(Boolean),
