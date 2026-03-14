@@ -1,6 +1,7 @@
 import { GeneratedGameModel, createGeneratedGameModel } from "./model.js";
 import { VerifiedWebGameService } from "../gen_engine/verified-webgame.service.js";
 import { StorytellingEngineService } from "../storytelling_engine/service.js";
+import { logInfo } from "../../core/logger.js";
 
 type GameGenerationWorkflowServiceOptions = {
   storytellingEngineService: StorytellingEngineService;
@@ -40,40 +41,113 @@ export class GameGenerationWorkflowService {
   async generateAndStoreGameForUser(
     params: GenerateAndStoreGameForUserParams,
   ): Promise<GenerateAndStoreGameForUserResult> {
-    const gameDescription =
-      await this.storytellingEngineService.generatePersonalizedRetroGameDescription(
-        params.userId,
-      );
+    const workflowStartedAt = Date.now();
+    let phase = "storytelling";
+    const heartbeat = setInterval(() => {
+      logInfo("ai_game_generation_workflow_heartbeat", {
+        traceId: params.traceId,
+        userId: params.userId,
+        phase,
+        elapsedMs: Date.now() - workflowStartedAt,
+      });
+    }, 10_000);
 
-    const generatedWebGame = await this.verifiedWebGameService.generateVerifiedWebGame({
-      gameDescription,
+    logInfo("ai_game_generation_workflow_started", {
+      traceId: params.traceId,
+      userId: params.userId,
       size: params.size,
-      traceId: params.traceId,
     });
 
-    const savedGame = await this.generatedGameModel.create({
-      traceId: params.traceId,
-      userId: params.userId,
-      gameDescription,
-      html: generatedWebGame.html,
-      size: generatedWebGame.size,
-      model: generatedWebGame.model,
-      attempts: generatedWebGame.attempts,
-    });
+    try {
+      const storytellingStartedAt = Date.now();
+      logInfo("ai_game_generation_storytelling_started", {
+        traceId: params.traceId,
+        userId: params.userId,
+      });
 
-    const savedGameCreatedAt = toIsoDate(savedGame.get("createdAt"));
+      const gameDescription =
+        await this.storytellingEngineService.generatePersonalizedRetroGameDescription(
+          params.userId,
+          { traceId: params.traceId },
+        );
 
-    return {
-      gameId: String(savedGame._id),
-      traceId: params.traceId,
-      userId: params.userId,
-      gameDescription,
-      html: generatedWebGame.html,
-      size: generatedWebGame.size,
-      model: generatedWebGame.model,
-      attempts: generatedWebGame.attempts,
-      createdAt: savedGameCreatedAt,
-    };
+      logInfo("ai_game_generation_storytelling_completed", {
+        traceId: params.traceId,
+        userId: params.userId,
+        durationMs: Date.now() - storytellingStartedAt,
+        gameDescriptionLength: gameDescription.length,
+      });
+
+      phase = "webgame_generation";
+      const webGameStartedAt = Date.now();
+      logInfo("ai_game_generation_webgame_started", {
+        traceId: params.traceId,
+        userId: params.userId,
+        size: params.size,
+      });
+
+      const generatedWebGame =
+        await this.verifiedWebGameService.generateVerifiedWebGame({
+          gameDescription,
+          size: params.size,
+          traceId: params.traceId,
+        });
+
+      logInfo("ai_game_generation_webgame_completed", {
+        traceId: params.traceId,
+        userId: params.userId,
+        durationMs: Date.now() - webGameStartedAt,
+        attempts: generatedWebGame.attempts,
+        htmlLength: generatedWebGame.html.length,
+      });
+
+      phase = "db_persist";
+      const dbPersistStartedAt = Date.now();
+      logInfo("ai_game_generation_db_persist_started", {
+        traceId: params.traceId,
+        userId: params.userId,
+      });
+
+      const savedGame = await this.generatedGameModel.create({
+        traceId: params.traceId,
+        userId: params.userId,
+        gameDescription,
+        html: generatedWebGame.html,
+        size: generatedWebGame.size,
+        model: generatedWebGame.model,
+        attempts: generatedWebGame.attempts,
+      });
+
+      logInfo("ai_game_generation_db_persist_completed", {
+        traceId: params.traceId,
+        userId: params.userId,
+        durationMs: Date.now() - dbPersistStartedAt,
+        gameId: String(savedGame._id),
+      });
+
+      const savedGameCreatedAt = toIsoDate(savedGame.get("createdAt"));
+
+      phase = "completed";
+      logInfo("ai_game_generation_workflow_completed", {
+        traceId: params.traceId,
+        userId: params.userId,
+        totalDurationMs: Date.now() - workflowStartedAt,
+      });
+
+      return {
+        gameId: String(savedGame._id),
+        traceId: params.traceId,
+        userId: params.userId,
+        gameDescription,
+        html: generatedWebGame.html,
+        size: generatedWebGame.size,
+        model: generatedWebGame.model,
+        attempts: generatedWebGame.attempts,
+        createdAt: savedGameCreatedAt,
+      };
+    } finally {
+      clearInterval(heartbeat);
+    }
   }
 }
 

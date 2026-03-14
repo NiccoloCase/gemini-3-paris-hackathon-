@@ -9,6 +9,7 @@ import {
 } from "./gen_engine/verified-webgame.service.js";
 import { GameGenerationWorkflowService } from "./game_generation/service.js";
 import {
+  StorytellingModelTimeoutError,
   StorytellingEngineService,
   StorytellingUserNotFoundError,
 } from "./storytelling_engine/service.js";
@@ -145,6 +146,13 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
         if (error instanceof StorytellingUserNotFoundError) {
           return res.status(404).json({ error: error.message });
         }
+        if (error instanceof StorytellingModelTimeoutError) {
+          return res.status(504).json({
+            error: "Storytelling generation timed out",
+            timeoutMs: error.timeoutMs,
+            attempt: error.attempt,
+          });
+        }
 
         logError("ai_storytelling_engine_route_error", error, { userId });
         return res
@@ -156,6 +164,7 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
 
   router.post("/game-generation", async (req: Request, res: Response) => {
     const traceId = randomUUID();
+    const requestStartedAt = Date.now();
     const userId = req.body?.userId;
 
     if (!userId || typeof userId !== "string") {
@@ -187,10 +196,26 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
           traceId,
         });
 
+      logInfo("ai_game_generation_workflow_request_completed", {
+        traceId,
+        userId,
+        gameId: workflowResult.gameId,
+        durationMs: Date.now() - requestStartedAt,
+      });
+
       return res.json(workflowResult);
     } catch (error) {
       if (error instanceof StorytellingUserNotFoundError) {
         return res.status(404).json({ error: error.message, traceId });
+      }
+      if (error instanceof StorytellingModelTimeoutError) {
+        return res.status(504).json({
+          error: "Storytelling generation timed out",
+          traceId,
+          timeoutMs: error.timeoutMs,
+          attempt: error.attempt,
+          phase: "storytelling",
+        });
       }
 
       if (error instanceof WebGameGenerationValidationError) {

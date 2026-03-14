@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import mongoose, { Model, Schema, Types } from "mongoose";
 import { createGeminiModel } from "../core/model.js";
 import { responseContentToText } from "../gen_engine/content.js";
+import { logError, logInfo } from "../../core/logger.js";
 import { buildRetroArcadeStoryPrompt } from "./prompts.js";
 
 type UserRecord = Record<string, unknown>;
@@ -23,6 +24,18 @@ export class StorytellingUserNotFoundError extends Error {
   }
 }
 
+export class StorytellingModelTimeoutError extends Error {
+  readonly timeoutMs: number;
+  readonly attempt: number;
+
+  constructor(timeoutMs: number, attempt: number) {
+    super(`Storytelling model timed out after ${timeoutMs}ms on attempt ${attempt}`);
+    this.name = "StorytellingModelTimeoutError";
+    this.timeoutMs = timeoutMs;
+    this.attempt = attempt;
+  }
+}
+
 const EXCLUDED_TOP_LEVEL_KEYS = new Set([
   "_id",
   "__v",
@@ -41,77 +54,12 @@ const EXCLUDED_TOP_LEVEL_KEYS = new Set([
 const EXCLUDED_NESTED_KEY_PATTERN =
   /(password|pass|token|secret|salt|hash|api[-_]?key|jwt|session)/i;
 
-const MAX_ARRAY_ITEMS = 12;
-const MAX_OBJECT_KEYS = 20;
-const MAX_STRING_LENGTH = 280;
-const MAX_DEPTH = 4;
-const MIN_DESCRIPTION_LENGTH = 320;
-const MAX_GENERATION_ATTEMPTS = 3;
-const REQUIRED_MECHANICS_SIGNAL_GROUPS: Array<{
-  label: string;
-  synonyms: string[];
-}> = [
-  {
-    label: "win condition",
-    synonyms: [
-      "win condition",
-      "winning condition",
-      "victory condition",
-      "victory goal",
-      "how to win",
-      "success condition",
-    ],
-  },
-  {
-    label: "lose condition",
-    synonyms: [
-      "lose condition",
-      "loss condition",
-      "failure condition",
-      "defeat condition",
-      "how to lose",
-      "fail state",
-      "game over when",
-    ],
-  },
-  {
-    label: "score system",
-    synonyms: [
-      "score",
-      "scores",
-      "scoring",
-      "score system",
-      "points",
-      "point value",
-      "point values",
-    ],
-  },
-  {
-    label: "cooldown/frequency",
-    synonyms: [
-      "cooldown",
-      "cool down",
-      "recharge",
-      "frequency",
-      "interval",
-      "timer",
-      "rate limit",
-    ],
-  },
-  {
-    label: "controls",
-    synonyms: [
-      "control",
-      "controls",
-      "input",
-      "movement",
-      "arrow keys",
-      "wasd",
-      "tap",
-      "touch",
-    ],
-  },
-];
+const MAX_ARRAY_ITEMS = 6;
+const MAX_OBJECT_KEYS = 12;
+const MAX_STRING_LENGTH = 180;
+const MAX_DEPTH = 2;
+const DEFAULT_MAX_GENERATION_ATTEMPTS = 1;
+const DEFAULT_MODEL_TIMEOUT_MS = 25_000;
 
 const defaultUserModel = createDefaultUserModel();
 
@@ -126,33 +74,143 @@ export class StorytellingEngineService {
 
   async generatePersonalizedRetroGameDescription(
     userId: string,
+    options: { traceId?: string } = {},
   ): Promise<string> {
-    const user = await this.findUserById(userId);
-    if (!user) {
-      throw new StorytellingUserNotFoundError(userId);
-    }
+    const traceId = options.traceId;
+    const generationStartedAt = Date.now();
+    let currentPhase = "load_user";
+    let currentAttempt = 0;
+    const maxAttempts = readPositiveIntFromEnv(
+      "STORYTELLING_MAX_GENERATION_ATTEMPTS",
+      DEFAULT_MAX_GENERATION_ATTEMPTS,
+    );
+    const modelTimeoutMs = readPositiveIntFromEnv(
+      "STORYTELLING_MODEL_TIMEOUT_MS",
+      DEFAULT_MODEL_TIMEOUT_MS,
+    );
 
-    const preferenceSnapshot = buildPreferenceSnapshot(user);
-    const variationSeed = randomUUID();
-    const prompt = buildRetroArcadeStoryPrompt({
+    logInfo("storytelling_generation_started", {
+      traceId,
       userId,
-      variationSeed,
-      preferenceSnapshot,
+      maxAttempts,
+      modelTimeoutMs,
     });
 
-    let lastError: Error | null = null;
+    const heartbeat = setInterval(() => {
+      logInfo("storytelling_generation_heartbeat", {
+        traceId,
+        userId,
+        currentPhase,
+        currentAttempt,
+        elapsedMs: Date.now() - generationStartedAt,
+      });
+    }, 10_000);
 
-    for (let attempt = 1; attempt <= MAX_GENERATION_ATTEMPTS; attempt += 1) {
-      try {
-        const response = await this.model.invoke(prompt);
-        const rawOutput = responseContentToText(response.content);
-        return normalizeDescriptionFromModelOutput(rawOutput);
-      } catch (error) {
-        lastError = error instanceof Error ? error : new Error(String(error));
+    try {
+      const user = await this.findUserById(userId);
+      if (!user) {
+        throw new StorytellingUserNotFoundError(userId);
       }
-    }
 
-    throw lastError ?? new Error("Storytelling engine generation failed");
+      const preferenceSnapshot = buildPreferenceSnapshot(user);
+      logInfo("storytelling_user_loaded", {
+        traceId,
+        userId,
+        profileFieldCount: Object.keys(user).length,
+        preferenceFieldCount: Object.keys(preferenceSnapshot).length,
+      });
+
+      const variationSeed = randomUUID();
+      const prompt = buildRetroArcadeStoryPrompt({
+        userId,
+        variationSeed,
+        preferenceSnapshot,
+      });
+      logInfo("storytelling_prompt_built", {
+        traceId,
+        userId,
+        variationSeed,
+        promptLength: prompt.length,
+      });
+
+      let lastError: Error | null = null;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        currentAttempt = attempt;
+        currentPhase = "attempt_started";
+        const attemptStartedAt = Date.now();
+        let rawOutputLength = 0;
+        let rawOutputPreview = "";
+
+        logInfo("storytelling_attempt_started", {
+          traceId,
+          userId,
+          attempt,
+          maxAttempts,
+        });
+        try {
+          currentPhase = "model_invoke";
+          const response = await withTimeout(
+            this.model.invoke(prompt),
+            modelTimeoutMs,
+            () => new StorytellingModelTimeoutError(modelTimeoutMs, attempt),
+          );
+
+          currentPhase = "parse_response";
+          const rawOutput = responseContentToText(response.content);
+          rawOutputLength = rawOutput.length;
+          rawOutputPreview = rawOutput.slice(0, 300).replace(/\s+/g, " ").trim();
+
+          currentPhase = "normalize_output";
+          const description = normalizeDescriptionFromModelOutput(rawOutput);
+
+          logInfo("storytelling_attempt_succeeded", {
+            traceId,
+            userId,
+            attempt,
+            durationMs: Date.now() - attemptStartedAt,
+            rawOutputLength,
+            normalizedLength: description.length,
+          });
+
+          logInfo("storytelling_generation_completed", {
+            traceId,
+            userId,
+            totalDurationMs: Date.now() - generationStartedAt,
+            attempt,
+          });
+
+          return description;
+        } catch (error) {
+          lastError = error instanceof Error ? error : new Error(String(error));
+          logError("storytelling_attempt_failed", lastError, {
+            traceId,
+            userId,
+            attempt,
+            maxAttempts,
+            currentPhase,
+            durationMs: Date.now() - attemptStartedAt,
+            rawOutputLength,
+            rawOutputPreview,
+          });
+        }
+      }
+
+      logError(
+        "storytelling_generation_failed",
+        lastError ?? new Error("Storytelling engine generation failed"),
+        {
+          traceId,
+          userId,
+          maxAttempts,
+          totalDurationMs: Date.now() - generationStartedAt,
+        },
+      );
+
+      throw lastError ?? new Error("Storytelling engine generation failed");
+    } finally {
+      clearInterval(heartbeat);
+    }
   }
 
   private async findUserById(userId: string): Promise<UserRecord | null> {
@@ -287,42 +345,9 @@ function normalizeDescriptionFromModelOutput(rawOutput: string): string {
 
   const candidate = extractDescriptionCandidate(trimmed);
   const normalized = candidate.replace(/\s+/g, " ").trim();
-
-  if (normalized.length < MIN_DESCRIPTION_LENGTH) {
-    throw new Error("Storytelling engine output is too short");
+  if (!normalized) {
+    throw new Error("Storytelling engine output is empty after normalization");
   }
-  if (!normalized.includes("Reference games:")) {
-    throw new Error("Storytelling engine output missing reference games line");
-  }
-  if (!normalized.includes("MECHANICS SPEC:")) {
-    throw new Error("Storytelling engine output missing MECHANICS SPEC block");
-  }
-  if (!normalized.includes("STYLE SPEC:")) {
-    throw new Error("Storytelling engine output missing STYLE SPEC block");
-  }
-
-  const mechanicsPos = normalized.indexOf("MECHANICS SPEC:");
-  const stylePos = normalized.indexOf("STYLE SPEC:");
-  if (stylePos <= mechanicsPos) {
-    throw new Error("Storytelling engine output has invalid section order");
-  }
-
-  const mechanicsContent = normalized
-    .slice(mechanicsPos, stylePos)
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-  for (const signalGroup of REQUIRED_MECHANICS_SIGNAL_GROUPS) {
-    const hasAnySignal = signalGroup.synonyms.some((synonym) =>
-      mechanicsContent.includes(synonym),
-    );
-    if (!hasAnySignal) {
-      throw new Error(
-        `Storytelling engine output missing mechanics signal: ${signalGroup.label}`,
-      );
-    }
-  }
-
   return normalized;
 }
 
@@ -390,4 +415,34 @@ function unwrapQuotedText(text: string): string {
     return trimmed.slice(1, -1).trim();
   }
   return trimmed;
+}
+
+function readPositiveIntFromEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value <= 0) return fallback;
+  return value;
+}
+
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  createError: () => Error,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(createError());
+    }, timeoutMs);
+
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
 }

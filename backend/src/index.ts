@@ -1,6 +1,5 @@
 import express, { Request, Response } from "express";
 import { createServer } from "node:http";
-import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { logError, logInfo } from "./core/logger.js";
@@ -10,7 +9,15 @@ import { initSocket } from "./socket.js";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Methods", "GET,POST,PUT,PATCH,DELETE,OPTIONS");
+  res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(204);
+  }
+  next();
+});
 app.use(express.json());
 app.use((req, res, next) => {
   const startedAt = Date.now();

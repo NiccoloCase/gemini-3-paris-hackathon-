@@ -39,9 +39,7 @@ export function buildRetroArcadeStoryPrompt(
 
 Task:
 - Design ONE game concept for a single-player game only.
-- The concept must be either:
-  1) based on ONE existing classic game, OR
-  2) a merge of exactly TWO classic games.
+- The concept must be based on ONE existing classic game only.
 - The concept must preserve a strong retro arcade identity, while adding fresh mechanics.
 - Tailor the concept to this user's preferences.
 
@@ -49,7 +47,8 @@ Hard constraints:
 - Mode must always be single player.
 - References must come from this list:
 ${referenceList}
-- Use exactly one reference game OR exactly two merged reference games.
+- Use exactly one reference game.
+- Never merge or combine multiple games.
 - Use the variation seed to produce a different result on different runs.
 - This must feel deeply personal: the player should instantly feel "this game was made for me".
 - Explicitly weave in as many concrete user signals as possible (hobbies, sports, mood, ideal world, aesthetics, challenge style, themes, vibes, game theme ideas, summary, username, and any other useful fields in the profile).
@@ -86,7 +85,7 @@ Output format rules:
 - No JSON and no Markdown code blocks.
 - 320 to 520 words.
 - Include an explicit reference sentence near the beginning in this exact style:
-  "Reference games: <GAME_A>" OR "Reference games: <GAME_A> + <GAME_B>".
+  "Reference games: <GAME_A>".
 - Split the output in exactly two labeled blocks in this order:
   - "MECHANICS SPEC:"
   - "STYLE SPEC:"
