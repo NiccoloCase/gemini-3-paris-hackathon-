@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { MOCK_GENERATED_GAME } from '@/lib/mockData';
 import AppShell from '@/components/AppShell';
+import { useLobby } from '@/hooks/useLobby';
 
 // Simple maze game
 const GRID_SIZE = 15;
@@ -44,6 +45,7 @@ function generateDots(maze: number[][]): Position[] {
 }
 
 export default function PlayPage() {
+  const { updateStatus } = useLobby();
   const [maze] = useState(generateMaze);
   const [player, setPlayer] = useState<Position>({ x: 0, y: 0 });
   const [dots, setDots] = useState<Position[]>(() => generateDots(generateMaze()));
@@ -55,6 +57,14 @@ export default function PlayPage() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [gameOver, setGameOver] = useState(false);
   const [time, setTime] = useState(0);
+
+  // Update lobby status when entering/leaving play
+  useEffect(() => {
+    updateStatus("Playing", MOCK_GENERATED_GAME.title);
+    return () => {
+      updateStatus("Idle");
+    };
+  }, []);
 
   const resetGame = () => {
     setPlayer({ x: 0, y: 0 });

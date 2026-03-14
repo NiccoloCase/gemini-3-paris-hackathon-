@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { createContext, useContext, useEffect, useState, useRef, ReactNode, createElement } from "react";
 import { io, Socket } from "socket.io-client";
 
 export interface LobbyUser {
@@ -9,15 +9,27 @@ export interface LobbyUser {
   game: string | null;
 }
 
-export function useLobby(username: string) {
+interface LobbyContextValue {
+  users: LobbyUser[];
+  socketId: string | null;
+  updateStatus: (status: LobbyUser["status"], game?: string) => void;
+}
+
+const LobbyContext = createContext<LobbyContextValue | null>(null);
+
+export function LobbyProvider({ username, children }: { username: string; children: ReactNode }) {
   const [users, setUsers] = useState<LobbyUser[]>([]);
+  const [socketId, setSocketId] = useState<string | null>(null);
   const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
+    if (!username) return;
+
     const socket = io("http://localhost:3000");
     socketRef.current = socket;
 
     socket.on("connect", () => {
+      setSocketId(socket.id ?? null);
       socket.emit("lobby:join", { username });
     });
 
@@ -43,6 +55,7 @@ export function useLobby(username: string) {
     return () => {
       socket.disconnect();
       socketRef.current = null;
+      setSocketId(null);
     };
   }, [username]);
 
@@ -50,5 +63,11 @@ export function useLobby(username: string) {
     socketRef.current?.emit("lobby:update_status", { status, game });
   };
 
-  return { users, updateStatus };
+  return createElement(LobbyContext.Provider, { value: { users, socketId, updateStatus } }, children);
+}
+
+export function useLobby() {
+  const ctx = useContext(LobbyContext);
+  if (!ctx) throw new Error("useLobby must be used within LobbyProvider");
+  return ctx;
 }

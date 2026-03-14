@@ -1,9 +1,18 @@
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { MOCK_PROFILE } from '@/lib/mockData';
 import AppShell from '@/components/AppShell';
+import { useApp } from '@/lib/AppContext';
 
 export default function ProfilePage() {
   const p = MOCK_PROFILE;
+  const { logout } = useApp();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   return (
     <AppShell>
@@ -25,9 +34,17 @@ export default function ProfilePage() {
                 ))}
               </div>
             </div>
-            <button className="font-display text-[10px] tracking-wider px-4 py-2 rounded border border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors">
-              EDIT PROFILE
-            </button>
+            <div className="flex flex-col gap-2">
+              <button className="font-display text-[10px] tracking-wider px-4 py-2 rounded border border-border text-muted-foreground hover:border-primary hover:text-primary transition-colors">
+                EDIT PROFILE
+              </button>
+              <button
+                onClick={handleLogout}
+                className="font-display text-[10px] tracking-wider px-4 py-2 rounded border border-red-500/40 text-red-400 hover:border-red-500 hover:text-red-300 transition-colors"
+              >
+                LOGOUT
+              </button>
+            </div>
           </motion.div>
 
           {/* AI Taste Profile */}

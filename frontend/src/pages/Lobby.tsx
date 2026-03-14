@@ -5,7 +5,8 @@ import { MOCK_GENERATED_GAME } from '@/lib/mockData';
 import type { UserStatus } from '@/lib/mockData';
 import AppShell from '@/components/AppShell';
 import { useApp } from '@/lib/AppContext';
-import { useLobby, type LobbyUser } from '@/hooks/useLobby';
+import { useLobby } from '@/hooks/useLobby';
+import type { LobbyUser } from '@/hooks/useLobby';
 
 /* ── Cabinet config ── */
 const CABINETS = [
@@ -277,12 +278,14 @@ function WalkingAvatar({
   user,
   index,
   isHovered,
+  isYou,
   onHover,
   onLeave,
 }: {
   user: LobbyUser;
   index: number;
   isHovered: boolean;
+  isYou: boolean;
   onHover: () => void;
   onLeave: () => void;
 }) {
@@ -340,6 +343,22 @@ function WalkingAvatar({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* You marker */}
+      {isYou && (
+        <div className="absolute -top-5 left-1/2 -translate-x-1/2 pointer-events-none">
+          <div
+            className="font-pixel text-[6px] tracking-widest px-1"
+            style={{ color: '#00e5ff', textShadow: '0 0 6px #00e5ff88' }}
+          >
+            YOU
+          </div>
+          <div
+            className="mx-auto"
+            style={{ width: 0, height: 0, borderLeft: '3px solid transparent', borderRight: '3px solid transparent', borderTop: '3px solid #00e5ff' }}
+          />
+        </div>
+      )}
 
       {/* Figure */}
       <div className="flex flex-col items-center" style={{ width: 16 }}>
@@ -423,7 +442,7 @@ function WalkingAvatar({
 export default function LobbyPage() {
   const navigate = useNavigate();
   const { username } = useApp();
-  const { users } = useLobby(username);
+  const { users, socketId } = useLobby();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   return (
@@ -512,6 +531,7 @@ export default function LobbyPage() {
                 user={user}
                 index={i}
                 isHovered={hoveredId === user.id}
+                isYou={user.id === socketId}
                 onHover={() => setHoveredId(user.id)}
                 onLeave={() => setHoveredId(null)}
               />
