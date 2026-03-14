@@ -225,50 +225,142 @@ export default function PlayPage() {
           </div>
         </div>
 
-        {/* Controls panel */}
+        {/* Control deck */}
         <div
-          className="w-full flex items-center justify-between px-6 py-4"
+          className="w-full relative"
           style={{
-            background: 'linear-gradient(180deg, #0a0a14 0%, #12121f 100%)',
+            background: 'linear-gradient(180deg, #0a0a14 0%, #101020 50%, #0e0e1c 100%)',
             border: '2px solid rgba(255,255,255,0.06)',
+            borderTop: 'none',
+            padding: '20px 28px 24px',
+          }}
+        >
+          {/* Deck surface texture */}
+          <div
+            className="absolute inset-0 pointer-events-none opacity-30"
+            style={{ background: 'repeating-linear-gradient(90deg, transparent, transparent 3px, rgba(255,255,255,0.01) 3px, rgba(255,255,255,0.01) 4px)' }}
+          />
+
+          <div className="relative flex items-center justify-between">
+            {/* LEFT: Joystick */}
+            <div className="flex flex-col items-center gap-2">
+              <div
+                className="relative flex items-center justify-center"
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle at 40% 35%, #1e1e30, #0a0a16)',
+                  border: '3px solid rgba(255,255,255,0.07)',
+                  boxShadow: 'inset 0 3px 12px rgba(0,0,0,0.7), 0 2px 6px rgba(0,0,0,0.5)',
+                }}
+              >
+                {/* Shaft */}
+                <div
+                  style={{
+                    width: 8,
+                    height: 30,
+                    borderRadius: 4,
+                    background: 'linear-gradient(90deg, #3a3a50, #2a2a3e, #3a3a50)',
+                    boxShadow: '0 0 8px rgba(0,0,0,0.6)',
+                  }}
+                />
+                {/* Ball top */}
+                <div
+                  className="absolute"
+                  style={{
+                    top: 6,
+                    width: 26,
+                    height: 26,
+                    borderRadius: '50%',
+                    background: 'radial-gradient(circle at 35% 30%, #555570, #1a1a2e)',
+                    border: '1.5px solid rgba(255,255,255,0.12)',
+                    boxShadow: '0 3px 8px rgba(0,0,0,0.6), inset 0 1px 3px rgba(255,255,255,0.06)',
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* CENTER: Exit button + coin slot */}
+            <div className="flex flex-col items-center gap-4">
+              <button
+                onClick={() => navigate('/lobby')}
+                className="group"
+              >
+                <div
+                  className="flex items-center justify-center transition-all group-hover:scale-105"
+                  style={{
+                    width: 64,
+                    height: 22,
+                    borderRadius: 11,
+                    background: 'linear-gradient(180deg, #2a2a40, #18182a)',
+                    border: '2px solid rgba(255,255,255,0.08)',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.3)',
+                  }}
+                >
+                  <span className="font-pixel text-[6px] text-white/25 tracking-[0.2em] group-hover:text-cyan-400/60 transition-colors">EXIT</span>
+                </div>
+              </button>
+
+              {/* Coin slot */}
+              <div className="flex flex-col items-center gap-1">
+                <div
+                  style={{
+                    width: 40,
+                    height: 5,
+                    borderRadius: 2.5,
+                    background: 'linear-gradient(180deg, #06060c, #14141f)',
+                    border: '1px solid rgba(255,255,255,0.04)',
+                    boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.9)',
+                  }}
+                />
+                <span className="font-pixel text-[4px] text-white/10 tracking-[0.3em]">INSERT COIN</span>
+              </div>
+            </div>
+
+            {/* RIGHT: Two big action buttons (red + green) */}
+            <div className="flex items-center gap-4">
+              {/* Green button */}
+              <motion.div
+                animate={{ boxShadow: ['0 0 8px #39ff1430', '0 0 20px #39ff1460', '0 0 8px #39ff1430'] }}
+                transition={{ duration: 2.2, repeat: Infinity }}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle at 38% 32%, #50ff30cc, #28cc10 50%, #1a8a08)',
+                  border: '3px solid #39ff1455',
+                  boxShadow: 'inset 0 -3px 6px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.15), 0 2px 8px rgba(0,0,0,0.5)',
+                }}
+              />
+              {/* Red button */}
+              <motion.div
+                animate={{ boxShadow: ['0 0 8px #ff2d2d30', '0 0 20px #ff2d2d60', '0 0 8px #ff2d2d30'] }}
+                transition={{ duration: 1.8, repeat: Infinity }}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: '50%',
+                  background: 'radial-gradient(circle at 38% 32%, #ff5050cc, #dd2222 50%, #aa0a0a)',
+                  border: '3px solid #ff2d2d55',
+                  boxShadow: 'inset 0 -3px 6px rgba(0,0,0,0.4), inset 0 2px 4px rgba(255,255,255,0.15), 0 2px 8px rgba(0,0,0,0.5)',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Cabinet bottom edge */}
+        <div
+          className="w-full"
+          style={{
+            height: 8,
+            background: 'linear-gradient(180deg, #0e0e1c, #080812)',
+            border: '2px solid rgba(255,255,255,0.04)',
             borderTop: 'none',
             borderRadius: '0 0 12px 12px',
           }}
-        >
-          {/* Joystick visual */}
-          <div className="flex items-center gap-3">
-            <div className="flex flex-col items-center">
-              <div className="w-[3px] h-[14px] rounded-full bg-white/15" />
-              <div className="w-[12px] h-[12px] rounded-full bg-white/8 border border-white/15" />
-            </div>
-            <span className="font-pixel text-[6px] text-white/20 tracking-widest">WASD / ARROWS</span>
-          </div>
-
-          {/* Back button */}
-          <button
-            onClick={() => navigate('/lobby')}
-            className="font-pixel text-[7px] tracking-widest px-4 py-2 border border-white/10 text-white/40 hover:text-cyan-400 hover:border-cyan-400/30 transition-colors"
-          >
-            EXIT GAME
-          </button>
-
-          {/* Decorative buttons */}
-          <div className="flex items-center gap-2">
-            <motion.div
-              animate={{ boxShadow: ['0 0 4px #ff2d9544', '0 0 10px #ff2d9599', '0 0 4px #ff2d9544'] }}
-              transition={{ duration: 1.8, repeat: Infinity }}
-              className="w-[10px] h-[10px] rounded-full"
-              style={{ background: '#ff2d9566' }}
-            />
-            <motion.div
-              animate={{ boxShadow: ['0 0 4px #00e5ff44', '0 0 10px #00e5ff99', '0 0 4px #00e5ff44'] }}
-              transition={{ duration: 2.2, repeat: Infinity }}
-              className="w-[10px] h-[10px] rounded-full"
-              style={{ background: '#00e5ff66' }}
-            />
-            <div className="w-[10px] h-[10px] rounded-full bg-white/8" />
-          </div>
-        </div>
+        />
 
         {/* Cabinet shadow */}
         <div
