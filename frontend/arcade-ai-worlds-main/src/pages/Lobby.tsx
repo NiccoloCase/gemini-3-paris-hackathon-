@@ -1,6 +1,8 @@
-import { motion } from 'framer-motion';
+import { useState } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_GENERATED_GAME } from '@/lib/mockData';
+import { MOCK_GENERATED_GAME, MOCK_USERS } from '@/lib/mockData';
+import type { UserStatus } from '@/lib/mockData';
 import AppShell from '@/components/AppShell';
 import { useApp } from '@/lib/AppContext';
 
@@ -249,9 +251,178 @@ function ArcadeCabinet({
   );
 }
 
+/* ── Status colors (hex for inline styles) ── */
+const STATUS_HEX: Record<UserStatus, string> = {
+  Playing: '#00ff00',
+  Idle: '#737373',
+  'In Match': '#00ffff',
+  'Generating Game': '#ff2d95',
+};
+
+/* ── Walk paths per avatar (stay within center zone) ── */
+const WALK_PATHS: { x: number[]; y: number[]; duration: number }[] = [
+  { x: [35, 50, 60, 45, 35], y: [58, 62, 68, 72, 58], duration: 12 },
+  { x: [55, 40, 48, 62, 55], y: [65, 70, 60, 63, 65], duration: 10 },
+  { x: [45, 60, 55, 38, 45], y: [72, 68, 60, 65, 72], duration: 14 },
+  { x: [50, 35, 42, 58, 50], y: [60, 66, 74, 70, 60], duration: 11 },
+  { x: [38, 52, 65, 48, 38], y: [68, 58, 64, 75, 68], duration: 13 },
+  { x: [62, 45, 38, 55, 62], y: [62, 72, 66, 58, 62], duration: 9 },
+  { x: [42, 58, 50, 35, 42], y: [75, 70, 62, 68, 75], duration: 15 },
+  { x: [58, 42, 55, 65, 58], y: [66, 60, 72, 68, 66], duration: 8 },
+];
+
+/* ── Walking Avatar ── */
+function WalkingAvatar({
+  user,
+  index,
+  isHovered,
+  onHover,
+  onLeave,
+}: {
+  user: (typeof MOCK_USERS)[number];
+  index: number;
+  isHovered: boolean;
+  onHover: () => void;
+  onLeave: () => void;
+}) {
+  const path = WALK_PATHS[index % WALK_PATHS.length];
+  const color = STATUS_HEX[user.status as UserStatus];
+
+  return (
+    <motion.div
+      className="absolute cursor-pointer"
+      style={{ zIndex: 10 }}
+      initial={{ opacity: 0 }}
+      animate={{
+        opacity: 1,
+        left: path.x.map((v) => `${v}%`),
+        top: path.y.map((v) => `${v}%`),
+      }}
+      transition={{
+        opacity: { delay: 0.9 + index * 0.05, duration: 0.4 },
+        left: { duration: path.duration, repeat: Infinity, ease: 'linear' },
+        top: { duration: path.duration, repeat: Infinity, ease: 'linear' },
+      }}
+      onMouseEnter={onHover}
+      onMouseLeave={onLeave}
+    >
+      {/* Tooltip */}
+      <AnimatePresence>
+        {isHovered && (
+          <motion.div
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 4 }}
+            transition={{ duration: 0.15 }}
+            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 pointer-events-none"
+            style={{ zIndex: 50 }}
+          >
+            <div className="bg-black/80 backdrop-blur border border-white/10 rounded-md px-3 py-2 whitespace-nowrap">
+              <p className="font-pixel text-[8px] text-white tracking-wider">{user.username}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span
+                  className="w-1.5 h-1.5 rounded-full inline-block"
+                  style={{ background: color, boxShadow: `0 0 4px ${color}` }}
+                />
+                <span className="font-pixel text-[6px] text-white/60 tracking-wider">{user.status}</span>
+              </div>
+              {user.status !== 'Idle' && (
+                <p className="font-pixel text-[6px] text-white/40 tracking-wider mt-0.5">
+                  {user.game ?? '...'}
+                </p>
+              )}
+            </div>
+            {/* Arrow */}
+            <div
+              className="absolute left-1/2 -translate-x-1/2 -bottom-1 w-2 h-2 rotate-45 bg-black/80 border-r border-b border-white/10"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Figure */}
+      <div className="flex flex-col items-center" style={{ width: 16 }}>
+        {/* Head */}
+        <div
+          className="rounded-full"
+          style={{
+            width: 12,
+            height: 12,
+            background: `radial-gradient(circle at 40% 35%, ${color}cc, ${color}66)`,
+            boxShadow: `0 0 6px ${color}88`,
+          }}
+        />
+        {/* Body */}
+        <div
+          style={{
+            width: 10,
+            height: 16,
+            marginTop: 1,
+            background: `linear-gradient(180deg, #2a2a3a, #1a1a28)`,
+            borderRadius: '2px 2px 0 0',
+            border: '1px solid rgba(255,255,255,0.08)',
+          }}
+        />
+        {/* Legs */}
+        <div className="flex gap-[3px]" style={{ marginTop: 0 }}>
+          <div
+            className={`walk-leg-left-${index}`}
+            style={{
+              width: 3,
+              height: 10,
+              background: '#1a1a28',
+              borderRadius: '0 0 1px 1px',
+              transformOrigin: 'top center',
+            }}
+          />
+          <div
+            className={`walk-leg-right-${index}`}
+            style={{
+              width: 3,
+              height: 10,
+              background: '#1a1a28',
+              borderRadius: '0 0 1px 1px',
+              transformOrigin: 'top center',
+            }}
+          />
+        </div>
+        {/* Shadow */}
+        <div
+          style={{
+            width: 16,
+            height: 4,
+            marginTop: 1,
+            borderRadius: '50%',
+            background: `radial-gradient(ellipse, ${color}33 0%, transparent 70%)`,
+          }}
+        />
+      </div>
+
+      {/* Walk cycle CSS animation */}
+      <style>{`
+        .walk-leg-left-${index} {
+          animation: walkLeft ${0.4 + index * 0.03}s ease-in-out infinite;
+        }
+        .walk-leg-right-${index} {
+          animation: walkRight ${0.4 + index * 0.03}s ease-in-out infinite;
+        }
+        @keyframes walkLeft {
+          0%, 100% { transform: rotateZ(-12deg); }
+          50% { transform: rotateZ(12deg); }
+        }
+        @keyframes walkRight {
+          0%, 100% { transform: rotateZ(12deg); }
+          50% { transform: rotateZ(-12deg); }
+        }
+      `}</style>
+    </motion.div>
+  );
+}
+
 export default function LobbyPage() {
   const navigate = useNavigate();
   const { username } = useApp();
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   return (
     <AppShell>
@@ -330,6 +501,20 @@ export default function LobbyPage() {
               />
             </div>
           ))}
+
+          {/* ── WALKING AVATARS ── */}
+          <div className="absolute inset-0 z-10 hidden sm:block">
+            {MOCK_USERS.map((user, i) => (
+              <WalkingAvatar
+                key={user.id}
+                user={user}
+                index={i}
+                isHovered={hoveredId === user.id}
+                onHover={() => setHoveredId(user.id)}
+                onLeave={() => setHoveredId(null)}
+              />
+            ))}
+          </div>
 
           {/* ── CENTRAL HUB ── */}
           <motion.div
