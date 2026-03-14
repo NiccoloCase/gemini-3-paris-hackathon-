@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_GENERATED_GAME, MOCK_USERS } from '@/lib/mockData';
+import { MOCK_GENERATED_GAME } from '@/lib/mockData';
 import type { UserStatus } from '@/lib/mockData';
 import AppShell from '@/components/AppShell';
 import { useApp } from '@/lib/AppContext';
+import { useLobby, type LobbyUser } from '@/hooks/useLobby';
 
 /* ── Cabinet config ── */
 const CABINETS = [
@@ -279,7 +280,7 @@ function WalkingAvatar({
   onHover,
   onLeave,
 }: {
-  user: (typeof MOCK_USERS)[number];
+  user: LobbyUser;
   index: number;
   isHovered: boolean;
   onHover: () => void;
@@ -422,6 +423,7 @@ function WalkingAvatar({
 export default function LobbyPage() {
   const navigate = useNavigate();
   const { username } = useApp();
+  const { users } = useLobby(username);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   return (
@@ -504,7 +506,7 @@ export default function LobbyPage() {
 
           {/* ── WALKING AVATARS ── */}
           <div className="absolute inset-0 z-10 hidden sm:block">
-            {MOCK_USERS.map((user, i) => (
+            {users.map((user, i) => (
               <WalkingAvatar
                 key={user.id}
                 user={user}
@@ -556,7 +558,7 @@ export default function LobbyPage() {
         {/* ── BOTTOM BAR ── */}
         <div className="relative z-30 h-9 bg-black/80 border-t border-white/[0.05] flex items-center justify-between px-6">
           <span className="font-pixel text-[6px] text-muted-foreground tracking-widest">{username} &bull; CREDITS: 99</span>
-          <span className="font-pixel text-[6px] neon-green">8 ONLINE</span>
+          <span className="font-pixel text-[6px] neon-green">{users.length} ONLINE</span>
         </div>
       </div>
     </AppShell>
