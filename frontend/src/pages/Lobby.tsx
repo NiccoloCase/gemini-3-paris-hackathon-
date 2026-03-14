@@ -546,32 +546,20 @@ export default function LobbyPage() {
             className="absolute inset-x-0 top-[12%] sm:top-[18%] z-20 flex flex-col items-center gap-5 px-4"
           >
             <div className="bg-white/[0.03] backdrop-blur-sm border border-white/[0.08] rounded-lg px-6 py-4 text-center max-w-sm w-full">
-              <p className="font-pixel text-[7px] text-muted-foreground/50 tracking-[0.3em] mb-2">NOW PLAYING</p>
+              <p className="font-pixel text-[7px] text-muted-foreground/50 tracking-[0.3em] mb-2">YOUR GAME</p>
               <h2 className="font-display text-xl sm:text-2xl tracking-wider text-foreground neon-cyan">
                 {MOCK_GENERATED_GAME.title}
               </h2>
-              <p className="text-xs text-muted-foreground/60 font-body mt-1">
-                Inspired by {MOCK_GENERATED_GAME.inspiration} &middot; {MOCK_GENERATED_GAME.theme}
-              </p>
             </div>
 
-            <div className="flex gap-4">
-              <motion.button
-                whileHover={{ scale: 1.05, boxShadow: '0 0 25px hsl(180,100%,50%,0.4)' }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => navigate('/play')}
-                className="bg-primary text-black font-pixel text-[10px] tracking-widest px-8 sm:px-10 py-3 border-glow-cyan transition-colors"
-              >
-                ► PLAY
-              </motion.button>
-              <motion.button
-                whileHover={{ scale: 1.05, borderColor: 'rgba(255,255,255,0.3)' }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-white/[0.04] text-foreground/80 font-pixel text-[10px] tracking-widest px-6 sm:px-8 py-3 border border-white/[0.1] hover:bg-white/[0.08] transition-colors"
-              >
-                HIGH SCORES
-              </motion.button>
-            </div>
+            <motion.button
+              whileHover={{ scale: 1.05, boxShadow: '0 0 25px hsl(180,100%,50%,0.4)' }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => navigate('/play')}
+              className="bg-primary text-black font-pixel text-[12px] tracking-widest px-12 sm:px-16 py-4 border-glow-cyan transition-colors"
+            >
+              ► PLAY
+            </motion.button>
           </motion.div>
         </div>
 
