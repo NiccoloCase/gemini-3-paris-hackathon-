@@ -4,39 +4,250 @@ import { MOCK_GENERATED_GAME } from '@/lib/mockData';
 import AppShell from '@/components/AppShell';
 import { useApp } from '@/lib/AppContext';
 
-/* ═══════════════════════════════════════════════════
-   ONE-POINT PERSPECTIVE ROOM
-
-   Ceiling:  (0,0) ──────────────── (100,0)
-              ╲                        ╱
-               (20,20) ──── (80,20)    ← back wall top
-                │                │
-               (20,58) ──── (80,58)    ← back wall bottom
-              ╱                        ╲
-   Floor:   (0,100) ────────────── (100,100)
-
-   ═══════════════════════════════════════════════════ */
-
-/* Back-wall cabinet data */
-const CABS = [
-  { x: 23, label: 'PAC-MAN',    mq: 'from-yellow-700/40 to-yellow-900/40', scr: 'hsl(51 100% 50%/0.25)',  gl: 'hsl(51 100% 50%/0.2)' },
-  { x: 34, label: 'TEKKEN',     mq: 'from-red-700/40 to-red-900/40',       scr: 'hsl(0 100% 50%/0.22)',   gl: 'hsl(0 100% 50%/0.18)' },
-  { x: 45, label: 'STREET F.II',mq: 'from-blue-700/40 to-blue-900/40',     scr: 'hsl(220 100% 50%/0.25)', gl: 'hsl(220 100% 50%/0.2)' },
-  { x: 56, label: 'GALAGA',     mq: 'from-cyan-700/40 to-cyan-900/40',     scr: 'hsl(180 100% 50%/0.22)', gl: 'hsl(180 100% 50%/0.18)' },
-  { x: 67, label: 'MORTAL K.',  mq: 'from-emerald-700/40 to-emerald-900/40', scr: 'hsl(120 100% 50%/0.22)', gl: 'hsl(120 100% 50%/0.18)' },
+/* ── Cabinet config ── */
+const CABINETS = [
+  {
+    side: 'left' as const,
+    bottom: '8%',
+    offset: '2%',
+    rotateY: 28,
+    delay: 0.3,
+    color: '#ff2d95',
+    colorHsl: 'hsl(330, 100%, 57%)',
+    label: 'NEON BLITZ',
+    sideColor: '#1f0818',
+    screenAnim: 1.8,
+  },
+  {
+    side: 'left' as const,
+    bottom: '16%',
+    offset: '20%',
+    rotateY: 15,
+    delay: 0.45,
+    color: '#00e5ff',
+    colorHsl: 'hsl(187, 100%, 50%)',
+    label: 'CYBER DRIFT',
+    sideColor: '#081418',
+    screenAnim: 2.4,
+  },
+  {
+    side: 'right' as const,
+    bottom: '8%',
+    offset: '2%',
+    rotateY: -28,
+    delay: 0.35,
+    color: '#ffe500',
+    colorHsl: 'hsl(54, 100%, 50%)',
+    label: 'PIXEL WARS',
+    sideColor: '#18160a',
+    screenAnim: 2.0,
+  },
+  {
+    side: 'right' as const,
+    bottom: '16%',
+    offset: '20%',
+    rotateY: -15,
+    delay: 0.5,
+    color: '#39ff14',
+    colorHsl: 'hsl(110, 100%, 54%)',
+    label: 'GRID RACER',
+    sideColor: '#0a180a',
+    screenAnim: 2.8,
+  },
 ];
 
-/* Side-wall cabinet silhouettes */
-const L_SIDES = [
-  { top: 38, left: 2,  w: 22, h: 48, o: 0.4 },
-  { top: 35, left: 7,  w: 24, h: 55, o: 0.55 },
-  { top: 32, left: 13, w: 26, h: 62, o: 0.7 },
-];
-const R_SIDES = [
-  { top: 38, right: 2,  w: 22, h: 48, o: 0.4 },
-  { top: 35, right: 7,  w: 24, h: 55, o: 0.55 },
-  { top: 32, right: 13, w: 26, h: 62, o: 0.7 },
-];
+/* ── 3D Arcade Cabinet ── */
+function ArcadeCabinet({
+  color,
+  label,
+  sideColor,
+  rotateY,
+  delay,
+  screenAnim,
+}: {
+  color: string;
+  label: string;
+  sideColor: string;
+  rotateY: number;
+  delay: number;
+  screenAnim: number;
+}) {
+  const facingLeft = rotateY > 0;
+  const W = 180;
+  const H = 280;
+  const D = 28;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 80, scale: 0.7 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ delay, duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+      style={{ width: W, height: H, perspective: 900, transformStyle: 'preserve-3d' }}
+    >
+      {/* Idle hover */}
+      <motion.div
+        animate={{ y: [0, -4, 0] }}
+        transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: delay + 1 }}
+        style={{ width: '100%', height: '100%', transformStyle: 'preserve-3d', transform: `rotateY(${rotateY}deg)` }}
+      >
+        {/* ── Front ── */}
+        <div
+          className="absolute inset-0 rounded-t-lg overflow-hidden"
+          style={{
+            backfaceVisibility: 'hidden',
+            background: 'linear-gradient(180deg, #111119 0%, #08080e 100%)',
+            border: '1.5px solid rgba(255,255,255,0.07)',
+            boxShadow: `0 0 40px ${color}15, inset 0 0 20px rgba(0,0,0,0.5)`,
+          }}
+        >
+          {/* Marquee */}
+          <motion.div
+            animate={{ boxShadow: [`0 4px 20px ${color}44`, `0 4px 35px ${color}88`, `0 4px 20px ${color}44`] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+            className="w-full flex items-center justify-center"
+            style={{
+              height: '16%',
+              background: `linear-gradient(180deg, ${color}, ${color}99)`,
+              borderBottom: '3px solid rgba(0,0,0,0.5)',
+            }}
+          >
+            <span
+              className="font-pixel text-[9px] text-black tracking-[0.25em] font-bold"
+              style={{ textShadow: '0 1px 0 rgba(255,255,255,0.4)' }}
+            >
+              {label}
+            </span>
+          </motion.div>
+
+          {/* Screen */}
+          <div className="relative mx-3 mt-3 rounded-sm overflow-hidden" style={{ height: '40%' }}>
+            {/* Base glow */}
+            <div
+              className="absolute inset-0"
+              style={{
+                background: `radial-gradient(ellipse at center, ${color}55 0%, ${color}15 60%, #000 100%)`,
+                boxShadow: `inset 0 0 40px ${color}33`,
+              }}
+            />
+            {/* Screen flicker */}
+            <motion.div
+              className="absolute inset-0"
+              animate={{ opacity: [0.4, 0.8, 0.5, 0.9, 0.4] }}
+              transition={{ duration: screenAnim, repeat: Infinity, ease: 'linear' }}
+              style={{ background: `radial-gradient(circle at 50% 40%, ${color}66 0%, transparent 70%)` }}
+            />
+            {/* Scanlines */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: `repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.2) 2px, rgba(0,0,0,0.2) 4px)`,
+              }}
+            />
+            {/* Moving scan bar */}
+            <motion.div
+              className="absolute inset-x-0 h-[15%] pointer-events-none"
+              animate={{ top: ['-15%', '115%'] }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'linear', delay: delay }}
+              style={{ background: `linear-gradient(180deg, transparent, ${color}22, transparent)` }}
+            />
+            {/* Fake game content */}
+            <div className="absolute inset-0 flex flex-col justify-center items-center gap-2 p-3">
+              <motion.div
+                animate={{ width: ['55%', '70%', '55%'] }}
+                transition={{ duration: 2, repeat: Infinity }}
+                className="h-[4px] rounded-full"
+                style={{ background: `${color}88` }}
+              />
+              <motion.div
+                animate={{ width: ['35%', '50%', '35%'] }}
+                transition={{ duration: 2.5, repeat: Infinity }}
+                className="h-[4px] rounded-full"
+                style={{ background: `${color}55` }}
+              />
+              <motion.div
+                animate={{ width: ['45%', '30%', '45%'] }}
+                transition={{ duration: 1.8, repeat: Infinity }}
+                className="h-[4px] rounded-full"
+                style={{ background: `${color}66` }}
+              />
+            </div>
+          </div>
+
+          {/* Controls */}
+          <div
+            className="mx-3 mt-3 rounded-sm flex items-center justify-center gap-4"
+            style={{ height: '14%', background: 'rgba(255,255,255,0.025)', border: '1px solid rgba(255,255,255,0.04)' }}
+          >
+            {/* Joystick */}
+            <div className="flex flex-col items-center gap-[2px]">
+              <div className="w-[4px] h-[14px] rounded-full bg-white/25" />
+              <div className="w-[10px] h-[10px] rounded-full bg-white/10 border border-white/20" />
+            </div>
+            {/* Buttons */}
+            <div className="flex gap-2">
+              <motion.div
+                animate={{ boxShadow: [`0 0 3px ${color}44`, `0 0 8px ${color}99`, `0 0 3px ${color}44`] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="w-[9px] h-[9px] rounded-full"
+                style={{ background: `${color}77` }}
+              />
+              <div className="w-[9px] h-[9px] rounded-full bg-white/10" />
+              <div className="w-[9px] h-[9px] rounded-full bg-white/10" />
+            </div>
+          </div>
+
+          {/* Coin slot */}
+          <div className="flex justify-center mt-3">
+            <div className="w-[24px] h-[5px] rounded-full bg-white/[0.06] border border-white/[0.05]" />
+          </div>
+        </div>
+
+        {/* ── Side Panel ── */}
+        <div
+          className="absolute top-0"
+          style={{
+            width: D,
+            height: H,
+            background: `linear-gradient(180deg, ${sideColor} 0%, #030306 100%)`,
+            border: '1px solid rgba(255,255,255,0.03)',
+            borderRadius: '2px',
+            transformOrigin: facingLeft ? `${W}px 0` : '0 0',
+            transform: facingLeft ? `translateX(${W}px) rotateY(90deg)` : `translateX(-${D}px) rotateY(-90deg)`,
+            backfaceVisibility: 'hidden',
+          }}
+        >
+          {/* Side neon strip */}
+          <motion.div
+            animate={{ opacity: [0.3, 0.7, 0.3] }}
+            transition={{ duration: 2.5, repeat: Infinity }}
+            className="absolute top-[15%] bottom-[30%] w-[2px] rounded-full"
+            style={{
+              left: facingLeft ? 4 : undefined,
+              right: facingLeft ? undefined : 4,
+              background: color,
+              boxShadow: `0 0 6px ${color}, 0 0 12px ${color}66`,
+            }}
+          />
+        </div>
+
+        {/* ── Top Panel ── */}
+        <div
+          className="absolute left-0"
+          style={{
+            width: W,
+            height: D,
+            background: `linear-gradient(180deg, ${sideColor} 0%, #0a0a12 100%)`,
+            border: '1px solid rgba(255,255,255,0.03)',
+            borderRadius: '3px 3px 0 0',
+            transformOrigin: '0 0',
+            transform: 'rotateX(90deg)',
+            backfaceVisibility: 'hidden',
+          }}
+        />
+      </motion.div>
+    </motion.div>
+  );
+}
 
 export default function LobbyPage() {
   const navigate = useNavigate();
@@ -44,353 +255,123 @@ export default function LobbyPage() {
 
   return (
     <AppShell>
-      <div className="h-[calc(100vh-57px)] relative overflow-hidden bg-black">
+      <div className="h-[calc(100vh-57px)] relative overflow-hidden bg-black flex flex-col">
 
-        {/* ══════════ CEILING ══════════ */}
-        <div
-          className="absolute inset-0"
-          style={{
-            clipPath: 'polygon(0% 0%, 100% 0%, 80% 20%, 20% 20%)',
-            background: 'linear-gradient(180deg, #040408 0%, #080810 100%)',
-          }}
+        {/* ── ARCADIA ── */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+          className="relative z-20 text-center mt-10 sm:mt-14"
         >
-          {/* Exposed ductwork */}
-          <div className="absolute top-[5%] left-[8%] right-[8%] h-[3px] bg-gradient-to-r from-transparent via-gray-700/30 to-transparent" />
-          <div className="absolute top-[9%] left-[12%] right-[15%] h-[2px] bg-gradient-to-r from-transparent via-gray-600/25 to-transparent" />
-          <div className="absolute top-[3%] left-[25%] w-[15%] h-[3px] bg-gray-700/25" />
-          <div className="absolute top-[3%] right-[28%] w-[12%] h-[3px] bg-gray-700/20" />
-          {/* Cross pipe */}
-          <div className="absolute top-[5%] left-[40%] w-[2px] h-[8%] bg-gray-700/20" />
-          <div className="absolute top-[5%] right-[35%] w-[2px] h-[6%] bg-gray-600/15" />
-
-          {/* Hanging lights */}
-          {[22, 38, 55, 72].map((x, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.3 + i * 0.1 }}
-              className="absolute"
-              style={{ left: `${x}%`, top: '2%', transform: 'translateX(-50%)' }}
-            >
-              {/* Wire */}
-              <div className="w-px mx-auto bg-gray-600/50" style={{ height: 28 + (i % 2) * 8 }} />
-              {/* Fixture */}
-              <div
-                className="w-8 h-4 mx-auto rounded-b-full"
-                style={{
-                  background: i % 3 === 0
-                    ? 'radial-gradient(ellipse, hsl(40 85% 65%/0.55), hsl(40 70% 40%/0.2) 70%, transparent)'
-                    : i % 3 === 1
-                    ? 'radial-gradient(ellipse, hsl(180 80% 55%/0.4), hsl(180 80% 40%/0.15) 70%, transparent)'
-                    : 'radial-gradient(ellipse, hsl(320 70% 55%/0.35), hsl(320 70% 40%/0.12) 70%, transparent)',
-                  boxShadow: i % 3 === 0
-                    ? '0 6px 35px 8px hsl(40 85% 50%/0.08), 0 2px 15px hsl(40 85% 60%/0.12)'
-                    : i % 3 === 1
-                    ? '0 6px 35px 8px hsl(180 80% 50%/0.06), 0 2px 15px hsl(180 80% 50%/0.08)'
-                    : '0 6px 30px 6px hsl(320 70% 50%/0.05), 0 2px 12px hsl(320 70% 55%/0.06)',
-                }}
-              />
-            </motion.div>
-          ))}
-        </div>
-
-        {/* ══════════ LEFT WALL ══════════ */}
-        <div
-          className="absolute inset-0"
-          style={{
-            clipPath: 'polygon(0% 0%, 20% 20%, 20% 58%, 0% 100%)',
-            background: 'linear-gradient(160deg, #0c0c16 0%, #0e0e1c 50%, #0a0a14 100%)',
-          }}
-        >
-          {/* Paneling */}
-          <div className="absolute inset-0" style={{
-            background: `
-              repeating-linear-gradient(100deg, transparent, transparent 7%, rgba(255,255,255,0.008) 7%, rgba(255,255,255,0.008) 7.5%),
-              repeating-linear-gradient(0deg, transparent, transparent 30%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.08) 30.5%)
-            `,
-          }} />
-
-          {/* Side cabinets (seen from profile) */}
-          {L_SIDES.map((c, i) => (
-            <div key={i} className="absolute" style={{ top: `${c.top}%`, left: `${c.left}%`, opacity: c.o }}>
-              <div style={{ width: c.w, height: c.h }} className="relative">
-                <div className="absolute inset-0 bg-gray-900/50 border-r border-gray-600/15" />
-                <div className="absolute top-[8%] right-0 w-[55%] h-[45%]" style={{
-                  background: i === 2 ? 'hsl(180 100% 50%/0.12)' : i === 1 ? 'hsl(320 100% 50%/0.09)' : 'hsl(120 100% 50%/0.07)',
-                  boxShadow: `0 0 ${4 + i * 3}px ${i === 2 ? 'hsl(180 100% 50%/0.1)' : 'transparent'}`,
-                }} />
-              </div>
-            </div>
-          ))}
-
-          {/* Posters */}
-          <div className="absolute top-[24%] left-[3%] w-[28px] h-[36px] border border-gray-500/15 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-orange-700/15 via-red-800/10 to-orange-900/15" />
-            <div className="absolute inset-[2px] border border-gray-500/8" />
-          </div>
-          <div className="absolute top-[42%] left-[8%] w-[22px] h-[28px] border border-gray-500/12 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-700/12 to-indigo-900/12" />
-          </div>
-        </div>
-
-        {/* ══════════ RIGHT WALL ══════════ */}
-        <div
-          className="absolute inset-0"
-          style={{
-            clipPath: 'polygon(100% 0%, 80% 20%, 80% 58%, 100% 100%)',
-            background: 'linear-gradient(200deg, #0c0c16 0%, #0e0e1c 50%, #0a0a14 100%)',
-          }}
-        >
-          {/* Paneling */}
-          <div className="absolute inset-0" style={{
-            background: `
-              repeating-linear-gradient(80deg, transparent, transparent 7%, rgba(255,255,255,0.008) 7%, rgba(255,255,255,0.008) 7.5%),
-              repeating-linear-gradient(0deg, transparent, transparent 30%, rgba(0,0,0,0.08) 30%, rgba(0,0,0,0.08) 30.5%)
-            `,
-          }} />
-
-          {/* Side cabinets */}
-          {R_SIDES.map((c, i) => (
-            <div key={i} className="absolute" style={{ top: `${c.top}%`, right: `${c.right}%`, opacity: c.o }}>
-              <div style={{ width: c.w, height: c.h }} className="relative">
-                <div className="absolute inset-0 bg-gray-900/50 border-l border-gray-600/15" />
-                <div className="absolute top-[8%] left-0 w-[55%] h-[45%]" style={{
-                  background: i === 2 ? 'hsl(51 100% 50%/0.12)' : i === 1 ? 'hsl(0 100% 50%/0.09)' : 'hsl(280 100% 50%/0.07)',
-                  boxShadow: `0 0 ${4 + i * 3}px ${i === 2 ? 'hsl(51 100% 50%/0.1)' : 'transparent'}`,
-                }} />
-              </div>
-            </div>
-          ))}
-
-          {/* Posters */}
-          <div className="absolute top-[24%] right-[3%] w-[28px] h-[36px] border border-gray-500/15 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-700/15 via-pink-800/10 to-purple-900/15" />
-            <div className="absolute inset-[2px] border border-gray-500/8" />
-          </div>
-          <div className="absolute top-[42%] right-[8%] w-[22px] h-[28px] border border-gray-500/12 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-green-700/12 to-emerald-900/12" />
-          </div>
-
-          {/* PAC-MAN neon sign on right wall */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.8 }}
-            className="absolute top-[28%] right-[4%] font-pixel text-[7px] neon-yellow tracking-widest"
+          <motion.h1
+            animate={{
+              textShadow: [
+                '0 0 10px hsl(180,100%,50%), 0 0 40px hsl(180,100%,50%,0.6), 0 0 80px hsl(180,100%,50%,0.3), 0 0 120px hsl(180,100%,50%,0.15)',
+                '0 0 15px hsl(180,100%,50%), 0 0 50px hsl(180,100%,50%,0.7), 0 0 100px hsl(180,100%,50%,0.4), 0 0 150px hsl(180,100%,50%,0.2)',
+                '0 0 10px hsl(180,100%,50%), 0 0 40px hsl(180,100%,50%,0.6), 0 0 80px hsl(180,100%,50%,0.3), 0 0 120px hsl(180,100%,50%,0.15)',
+              ],
+            }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className="font-display text-6xl sm:text-8xl font-bold tracking-[0.3em] text-cyan-400"
           >
-            PAC-MAN
-          </motion.div>
-        </div>
+            ARCADIA
+          </motion.h1>
+        </motion.div>
 
-        {/* ══════════ BACK WALL ══════════ */}
-        <div
-          className="absolute inset-0"
-          style={{
-            clipPath: 'polygon(20% 20%, 80% 20%, 80% 58%, 20% 58%)',
-            background: 'linear-gradient(180deg, #10101c 0%, #141426 40%, #121220 100%)',
-          }}
-        >
-          {/* Subtle brick texture */}
-          <div className="absolute inset-0" style={{
-            background: `
-              repeating-linear-gradient(0deg, transparent, transparent 18px, rgba(255,255,255,0.006) 18px, rgba(255,255,255,0.006) 19px),
-              repeating-linear-gradient(90deg, transparent, transparent 35px, rgba(255,255,255,0.004) 35px, rgba(255,255,255,0.004) 36px)
-            `,
-          }} />
+        {/* ── FLOOR + CABINETS + HUB ── */}
+        <div className="flex-1 relative" style={{ perspective: '600px' }}>
+          {/* Grid floor */}
+          <div
+            className="absolute inset-x-0 bottom-0 h-[80%] origin-bottom"
+            style={{
+              transform: 'rotateX(55deg)',
+              background: `
+                repeating-linear-gradient(90deg, transparent, transparent calc(50% - 1px), hsl(180 100% 50% / 0.08) calc(50% - 1px), hsl(180 100% 50% / 0.08) calc(50%), transparent calc(50%)) 0 0 / 80px 80px,
+                repeating-linear-gradient(0deg, transparent, transparent calc(50% - 1px), hsl(180 100% 50% / 0.06) calc(50% - 1px), hsl(180 100% 50% / 0.06) calc(50%), transparent calc(50%)) 0 0 / 80px 80px,
+                linear-gradient(180deg, #050510 0%, #0a0a1a 100%)
+              `,
+            }}
+          />
+          {/* Horizon fade */}
+          <div
+            className="absolute inset-x-0 bottom-0 h-[80%] origin-bottom pointer-events-none"
+            style={{ transform: 'rotateX(55deg)', background: 'linear-gradient(180deg, rgba(0,0,0,0.85) 0%, transparent 35%)' }}
+          />
 
-          {/* ── NEON SIGNS ── */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.4 }}
-            className="absolute top-[23%] left-[23%] font-pixel text-[15px] neon-cyan tracking-[0.2em] animate-pulse-glow"
-            style={{ textShadow: '0 0 8px hsl(180 100% 50%), 0 0 25px hsl(180 100% 50%/0.6), 0 0 50px hsl(180 100% 50%/0.25)' }}
-          >
-            ARCADE
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="absolute top-[22%] left-[50%] -translate-x-1/2 font-display text-2xl font-bold neon-magenta tracking-[0.2em]"
-            style={{ textShadow: '0 0 8px hsl(320 100% 55%), 0 0 30px hsl(320 100% 55%/0.6), 0 0 60px hsl(320 100% 55%/0.2)' }}
-          >
-            PLAY NOW
-          </motion.div>
-
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="absolute top-[24%] right-[23%] font-pixel text-[12px] neon-green tracking-[0.15em] animate-pulse-glow"
-            style={{ textShadow: '0 0 6px hsl(120 100% 50%), 0 0 20px hsl(120 100% 50%/0.5), 0 0 45px hsl(120 100% 50%/0.2)' }}
-          >
-            HI-SCORE
-          </motion.div>
-
-          {/* ── ARCADE CABINETS ── */}
-          {CABS.map((cab, i) => (
-            <motion.div
-              key={i}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 + i * 0.08 }}
-              className="absolute"
-              style={{ left: `${cab.x}%`, top: '36%' }}
-            >
-              <div className="w-[58px] relative">
-                {/* Marquee */}
-                <div className={`h-[15px] bg-gradient-to-b ${cab.mq} border border-gray-500/20 flex items-center justify-center rounded-t-[2px]`}>
-                  <span className="font-pixel text-[3px] text-white/70 tracking-wider">{cab.label}</span>
-                </div>
-                {/* Screen */}
-                <div className="bg-[#0a0a0a] px-[3px] py-[3px] border-x border-gray-600/15">
-                  <div
-                    className="h-[38px] relative overflow-hidden"
-                    style={{ background: cab.scr, boxShadow: `0 0 18px ${cab.gl}` }}
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-br from-white/12 via-transparent to-black/10" />
-                    <div className="absolute inset-0" style={{
-                      background: 'repeating-linear-gradient(0deg,transparent,transparent 1px,rgba(0,0,0,0.07) 1px,rgba(0,0,0,0.07) 2px)',
-                    }} />
-                  </div>
-                </div>
-                {/* Control panel */}
-                <div className="h-[11px] bg-gray-700/30 border-x border-gray-600/15 flex items-center justify-center gap-[3px] px-1">
-                  <div className="w-[5px] h-[3px] bg-gray-900/60 rounded-full" />
-                  <div className="w-[5px] h-[5px] rounded-full bg-red-500/70" style={{ boxShadow: '0 0 3px rgba(255,0,0,0.3)' }} />
-                  <div className="w-[4px] h-[4px] rounded-full bg-blue-400/50" />
-                  <div className="w-[4px] h-[4px] rounded-full bg-yellow-400/50" />
-                </div>
-                {/* Lower body */}
-                <div className="h-[28px] bg-gradient-to-b from-gray-800/35 to-gray-900/45 border-x border-gray-600/12">
-                  {/* Sticker / art */}
-                  <div className="mx-[4px] mt-[5px] h-[8px] bg-gradient-to-r from-gray-700/15 to-gray-600/10 border border-gray-600/10" />
-                </div>
-                {/* Coin slot */}
-                <div className="h-[8px] bg-gray-900/50 border border-gray-600/12 flex items-center justify-center rounded-b-[2px]">
-                  <div className="w-[8px] h-[3px] bg-black/50 rounded-full border border-gray-500/15" />
-                </div>
-              </div>
-            </motion.div>
-          ))}
-
-          {/* Posters between/above cabinets */}
-          <div className="absolute top-[30%] left-[30%] w-[26px] h-[32px] border border-gray-400/10 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-b from-amber-700/12 to-amber-900/12" />
-          </div>
-          <div className="absolute top-[31%] right-[28%] w-[24px] h-[28px] border border-gray-400/10 overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-b from-sky-700/10 to-sky-900/10" />
-          </div>
-        </div>
-
-        {/* ══════════ FLOOR ══════════ */}
-        <div
-          className="absolute inset-0"
-          style={{
-            clipPath: 'polygon(20% 58%, 80% 58%, 100% 100%, 0% 100%)',
-          }}
-        >
-          {/* 90s retro carpet — colorful confetti on dark */}
-          <div className="absolute inset-0" style={{
-            background: `
-              linear-gradient(60deg,  hsl(0 85% 45%/0.09) 25%, transparent 25.5%) 0 0 / 42px 42px,
-              linear-gradient(240deg, hsl(0 85% 45%/0.06) 25%, transparent 25.5%) 21px 0 / 42px 42px,
-              linear-gradient(120deg, hsl(280 85% 50%/0.065) 25%, transparent 25.5%) 10px 21px / 42px 42px,
-              linear-gradient(300deg, hsl(280 85% 50%/0.05) 25%, transparent 25.5%) 31px 21px / 42px 42px,
-              radial-gradient(circle, hsl(180 100% 50%/0.075) 2px, transparent 2.5px) 8px 28px / 34px 34px,
-              radial-gradient(circle, hsl(51  100% 50%/0.065) 2px, transparent 2.5px) 25px 10px / 34px 34px,
-              radial-gradient(circle, hsl(320 100% 50%/0.055) 1.5px, transparent 2px) 18px 18px / 26px 26px,
-              radial-gradient(circle, hsl(120 100% 45%/0.05) 1.5px, transparent 2px) 4px 4px / 26px 26px,
-              linear-gradient(45deg,  hsl(51 90% 50%/0.04) 2px, transparent 2.5px) 15px 6px / 22px 22px,
-              linear-gradient(-45deg, hsl(180 90% 50%/0.035) 2px, transparent 2.5px) 6px 15px / 22px 22px,
-              linear-gradient(to bottom, #09091a 0%, #070715 100%)
-            `,
-          }} />
-
-          {/* Light pools from ceiling fixtures */}
-          {[28, 45, 62].map((x, i) => (
+          {/* ── CABINETS ── */}
+          {CABINETS.map((cab, i) => (
             <div
               key={i}
-              className="absolute pointer-events-none"
-              style={{
-                left: `${x}%`, top: '5%', transform: 'translateX(-50%)',
-                width: 130, height: 70,
-                background: i === 1
-                  ? 'radial-gradient(ellipse, hsl(40 80% 50%/0.04), transparent 70%)'
-                  : 'radial-gradient(ellipse, hsl(40 80% 50%/0.025), transparent 70%)',
-                filter: 'blur(8px)',
-              }}
-            />
+              className="absolute hidden sm:block"
+              style={{ [cab.side]: cab.offset, bottom: cab.bottom }}
+            >
+              <ArcadeCabinet
+                color={cab.color}
+                label={cab.label}
+                sideColor={cab.sideColor}
+                rotateY={cab.rotateY}
+                delay={cab.delay}
+                screenAnim={cab.screenAnim}
+              />
+              {/* Floor light pool */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: cab.delay + 0.5 }}
+                className="absolute -bottom-6 left-1/2 -translate-x-1/2 pointer-events-none"
+                style={{
+                  width: 220,
+                  height: 40,
+                  borderRadius: '50%',
+                  background: `radial-gradient(ellipse, ${cab.color}22 0%, transparent 70%)`,
+                  filter: 'blur(8px)',
+                }}
+              />
+            </div>
           ))}
 
-          {/* Neon reflection on floor */}
-          <div className="absolute top-0 left-[25%] w-[18%] h-[15%] bg-cyan-500/[0.02] blur-xl pointer-events-none" />
-          <div className="absolute top-0 left-[42%] w-[16%] h-[12%] bg-pink-500/[0.025] blur-xl pointer-events-none" />
-          <div className="absolute top-0 right-[25%] w-[15%] h-[12%] bg-green-500/[0.018] blur-xl pointer-events-none" />
+          {/* ── CENTRAL HUB ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+            className="absolute inset-x-0 top-[12%] sm:top-[18%] z-20 flex flex-col items-center gap-5 px-4"
+          >
+            <div className="bg-white/[0.03] backdrop-blur-sm border border-white/[0.08] rounded-lg px-6 py-4 text-center max-w-sm w-full">
+              <p className="font-pixel text-[7px] text-muted-foreground/50 tracking-[0.3em] mb-2">NOW PLAYING</p>
+              <h2 className="font-display text-xl sm:text-2xl tracking-wider text-foreground neon-cyan">
+                {MOCK_GENERATED_GAME.title}
+              </h2>
+              <p className="text-xs text-muted-foreground/60 font-body mt-1">
+                Inspired by {MOCK_GENERATED_GAME.inspiration} &middot; {MOCK_GENERATED_GAME.theme}
+              </p>
+            </div>
+
+            <div className="flex gap-4">
+              <motion.button
+                whileHover={{ scale: 1.05, boxShadow: '0 0 25px hsl(180,100%,50%,0.4)' }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => navigate('/play')}
+                className="bg-primary text-black font-pixel text-[10px] tracking-widest px-8 sm:px-10 py-3 border-glow-cyan transition-colors"
+              >
+                ► PLAY
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.05, borderColor: 'rgba(255,255,255,0.3)' }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-white/[0.04] text-foreground/80 font-pixel text-[10px] tracking-widest px-6 sm:px-8 py-3 border border-white/[0.1] hover:bg-white/[0.08] transition-colors"
+              >
+                HIGH SCORES
+              </motion.button>
+            </div>
+          </motion.div>
         </div>
 
-        {/* ══════════ EDGE LINES ══════════ */}
-        <svg className="absolute inset-0 w-full h-full pointer-events-none z-20" viewBox="0 0 1000 1000" preserveAspectRatio="none">
-          {/* Floor edges */}
-          <line x1="0" y1="1000" x2="200" y2="580" stroke="hsl(180 100% 50% / 0.07)" strokeWidth="1" />
-          <line x1="1000" y1="1000" x2="800" y2="580" stroke="hsl(180 100% 50% / 0.07)" strokeWidth="1" />
-          {/* Back wall bottom */}
-          <line x1="200" y1="580" x2="800" y2="580" stroke="hsl(180 100% 50% / 0.09)" strokeWidth="0.8" />
-          {/* Ceiling to back wall */}
-          <line x1="0" y1="0" x2="200" y2="200" stroke="rgba(255,255,255,0.025)" strokeWidth="1" />
-          <line x1="1000" y1="0" x2="800" y2="200" stroke="rgba(255,255,255,0.025)" strokeWidth="1" />
-          {/* Back wall top */}
-          <line x1="200" y1="200" x2="800" y2="200" stroke="rgba(255,255,255,0.035)" strokeWidth="0.8" />
-          {/* Verticals */}
-          <line x1="200" y1="200" x2="200" y2="580" stroke="rgba(255,255,255,0.02)" strokeWidth="0.8" />
-          <line x1="800" y1="200" x2="800" y2="580" stroke="rgba(255,255,255,0.02)" strokeWidth="0.8" />
-        </svg>
-
-        {/* ══════════ AMBIENT GLOW ══════════ */}
-        <div className="absolute top-[12%] left-[25%] w-36 h-10 bg-cyan-500/[0.025] blur-2xl pointer-events-none" />
-        <div className="absolute top-[10%] left-[45%] w-44 h-12 bg-pink-500/[0.03] blur-2xl pointer-events-none" />
-        <div className="absolute top-[12%] right-[24%] w-32 h-10 bg-green-500/[0.02] blur-2xl pointer-events-none" />
-
-        {/* Cabinet screen glow on back wall */}
-        <div className="absolute top-[48%] left-[28%] w-40 h-8 bg-yellow-500/[0.015] blur-xl pointer-events-none" />
-        <div className="absolute top-[48%] left-[48%] w-36 h-8 bg-blue-500/[0.015] blur-xl pointer-events-none" />
-        <div className="absolute top-[48%] right-[26%] w-40 h-8 bg-green-500/[0.012] blur-xl pointer-events-none" />
-
-        {/* ══════════ UI OVERLAY ══════════ */}
-
-        {/* Room label */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 1 }}
-          className="absolute top-2 left-1/2 -translate-x-1/2 z-30 font-pixel text-[7px] text-muted-foreground/50 tracking-[0.4em]"
-        >
-          MAIN HALL
-        </motion.div>
-
-        {/* Play button */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-          className="absolute bottom-14 left-1/2 -translate-x-1/2 z-30"
-        >
-          <button
-            onClick={() => navigate('/play')}
-            className="bg-primary text-black font-pixel text-[10px] tracking-widest px-10 py-3 border-glow-cyan hover:brightness-125 active:scale-95 transition-all"
-          >
-            ► PLAY {MOCK_GENERATED_GAME.title.toUpperCase()} ◄
-          </button>
-        </motion.div>
-
-        {/* Bottom info */}
-        <div className="absolute bottom-0 inset-x-0 h-8 bg-gradient-to-t from-black/90 to-transparent z-30 flex items-end justify-between px-6 pb-2 pointer-events-none">
+        {/* ── BOTTOM BAR ── */}
+        <div className="relative z-30 h-9 bg-black/80 border-t border-white/[0.05] flex items-center justify-between px-6">
           <span className="font-pixel text-[6px] text-muted-foreground tracking-widest">{username} &bull; CREDITS: 99</span>
           <span className="font-pixel text-[6px] neon-green">8 ONLINE</span>
-          <span className="font-pixel text-[6px] text-muted-foreground tracking-widest">FLOOR 1</span>
         </div>
       </div>
     </AppShell>
