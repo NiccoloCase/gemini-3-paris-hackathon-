@@ -129,12 +129,19 @@ export class PlaywrightBrowserRunner implements BrowserRunner {
 async function launchChromium(
   chromium: BrowserType,
 ) {
+  const launchOptions = {
+    headless: true as const,
+    args: ["--no-sandbox", "--disable-setuid-sandbox"],
+  };
+
   try {
-    return await chromium.launch({ headless: true });
-  } catch {
+    return await chromium.launch(launchOptions);
+  } catch (firstError) {
+    logError("webgame_runtime_chromium_launch_failed", firstError);
     try {
-      return await chromium.launch({ headless: true, channel: "chrome" });
-    } catch {
+      return await chromium.launch({ ...launchOptions, channel: "chrome" });
+    } catch (secondError) {
+      logError("webgame_runtime_chrome_channel_launch_failed", secondError);
       throw new Error(
         "Unable to launch a browser with Playwright. Install Chromium (`npx playwright install chromium`) or ensure Chrome is available on this machine.",
       );
