@@ -1,323 +1,287 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { MOCK_GENERATED_GAME } from '@/lib/mockData';
-import AppShell from '@/components/AppShell';
 import { useLobby } from '@/hooks/useLobby';
 
-// Simple maze game
-const GRID_SIZE = 15;
-const CELL_SIZE = 28;
+// Placeholder HTML game — will be replaced by LLM-generated content
+const PLACEHOLDER_GAME_HTML = `
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #0a0a1a; overflow: hidden; display: flex; align-items: center; justify-content: center; height: 100vh; }
+  canvas { display: block; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<script>
+const c = document.getElementById('c');
+const ctx = c.getContext('2d');
+c.width = c.height = Math.min(window.innerWidth, window.innerHeight);
+const S = c.width;
+const G = 20;
+const CS = S / G;
 
-type Position = { x: number; y: number };
+let snake = [{x:10,y:10}];
+let dir = {x:1,y:0};
+let food = spawn();
+let score = 0;
+let speed = 120;
 
-function generateMaze(): number[][] {
-  const maze: number[][] = Array.from({ length: GRID_SIZE }, () => Array(GRID_SIZE).fill(0));
-  // Add walls
-  const walls = [
-    [1,1],[1,2],[1,5],[1,6],[1,8],[1,9],[1,11],[1,12],
-    [2,3],[2,5],[2,9],[2,12],
-    [3,1],[3,3],[3,5],[3,7],[3,9],[3,11],[3,13],
-    [4,7],[4,11],
-    [5,1],[5,2],[5,3],[5,5],[5,7],[5,9],[5,10],[5,11],[5,13],
-    [6,5],[6,13],
-    [7,1],[7,2],[7,3],[7,5],[7,7],[7,8],[7,9],[7,11],[7,13],
-    [8,1],[8,9],[8,11],
-    [9,1],[9,3],[9,5],[9,6],[9,7],[9,9],[9,11],[9,13],
-    [10,3],[10,13],
-    [11,1],[11,3],[11,5],[11,7],[11,8],[11,9],[11,11],[11,13],
-    [12,1],[12,5],[12,11],
-    [13,1],[13,3],[13,5],[13,7],[13,9],[13,10],[13,11],[13,13],
-  ];
-  walls.forEach(([r,c]) => { if (r < GRID_SIZE && c < GRID_SIZE) maze[r][c] = 1; });
-  return maze;
+function spawn() {
+  let p;
+  do { p = {x:Math.floor(Math.random()*G),y:Math.floor(Math.random()*G)}; }
+  while (snake.some(s=>s.x===p.x&&s.y===p.y));
+  return p;
 }
 
-function generateDots(maze: number[][]): Position[] {
-  const dots: Position[] = [];
-  for (let y = 0; y < GRID_SIZE; y++) {
-    for (let x = 0; x < GRID_SIZE; x++) {
-      if (maze[y][x] === 0 && !(x === 0 && y === 0)) {
-        if (Math.random() > 0.4) dots.push({ x, y });
-      }
-    }
+document.addEventListener('keydown', e => {
+  const k = e.key;
+  if ((k==='ArrowUp'||k==='w') && dir.y===0) dir={x:0,y:-1};
+  if ((k==='ArrowDown'||k==='s') && dir.y===0) dir={x:0,y:1};
+  if ((k==='ArrowLeft'||k==='a') && dir.x===0) dir={x:-1,y:0};
+  if ((k==='ArrowRight'||k==='d') && dir.x===0) dir={x:1,y:0};
+});
+
+function draw() {
+  ctx.fillStyle = '#0a0a1a';
+  ctx.fillRect(0,0,S,S);
+
+  // Grid
+  ctx.strokeStyle = 'rgba(0,229,255,0.06)';
+  for(let i=0;i<=G;i++){
+    ctx.beginPath(); ctx.moveTo(i*CS,0); ctx.lineTo(i*CS,S); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(0,i*CS); ctx.lineTo(S,i*CS); ctx.stroke();
   }
-  return dots;
+
+  // Food
+  ctx.shadowBlur = 15;
+  ctx.shadowColor = '#ff2d95';
+  ctx.fillStyle = '#ff2d95';
+  ctx.beginPath();
+  ctx.arc(food.x*CS+CS/2, food.y*CS+CS/2, CS/3, 0, Math.PI*2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+
+  // Snake
+  snake.forEach((s,i) => {
+    const alpha = 1 - (i / snake.length) * 0.6;
+    ctx.shadowBlur = i===0 ? 12 : 6;
+    ctx.shadowColor = '#00e5ff';
+    ctx.fillStyle = 'rgba(0,229,255,' + alpha + ')';
+    ctx.fillRect(s.x*CS+1, s.y*CS+1, CS-2, CS-2);
+  });
+  ctx.shadowBlur = 0;
+
+  // Score
+  ctx.fillStyle = 'rgba(0,229,255,0.8)';
+  ctx.font = '14px monospace';
+  ctx.fillText('SCORE: ' + score, 8, 20);
 }
+
+function update() {
+  const head = {x:snake[0].x+dir.x, y:snake[0].y+dir.y};
+
+  if (head.x<0||head.x>=G||head.y<0||head.y>=G||snake.some(s=>s.x===head.x&&s.y===head.y)) {
+    // Game over — restart
+    snake = [{x:10,y:10}];
+    dir = {x:1,y:0};
+    food = spawn();
+    score = 0;
+    speed = 120;
+    return;
+  }
+
+  snake.unshift(head);
+  if (head.x===food.x && head.y===food.y) {
+    score += 10;
+    food = spawn();
+    if (speed > 60) speed -= 2;
+  } else {
+    snake.pop();
+  }
+}
+
+function loop() {
+  update();
+  draw();
+  setTimeout(loop, speed);
+}
+loop();
+</script>
+</body>
+</html>`;
 
 export default function PlayPage() {
   const { updateStatus } = useLobby();
-  const [maze] = useState(generateMaze);
-  const [player, setPlayer] = useState<Position>({ x: 0, y: 0 });
-  const [dots, setDots] = useState<Position[]>(() => generateDots(generateMaze()));
-  const [enemies, setEnemies] = useState<Position[]>([
-    { x: 14, y: 14 }, { x: 14, y: 0 }, { x: 7, y: 7 },
-  ]);
-  const [score, setScore] = useState(0);
-  const [lives, setLives] = useState(3);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [gameOver, setGameOver] = useState(false);
-  const [time, setTime] = useState(0);
+  const navigate = useNavigate();
 
-  // Update lobby status when entering/leaving play
   useEffect(() => {
     updateStatus("Playing", MOCK_GENERATED_GAME.title);
-    return () => {
-      updateStatus("Idle");
-    };
+    return () => { updateStatus("Idle"); };
   }, []);
 
-  const resetGame = () => {
-    setPlayer({ x: 0, y: 0 });
-    setDots(generateDots(maze));
-    setEnemies([{ x: 14, y: 14 }, { x: 14, y: 0 }, { x: 7, y: 7 }]);
-    setScore(0);
-    setLives(3);
-    setGameOver(false);
-    setTime(0);
-    setIsPlaying(true);
-  };
-
-  const movePlayer = useCallback((dx: number, dy: number) => {
-    if (!isPlaying || gameOver) return;
-    setPlayer(prev => {
-      const nx = prev.x + dx;
-      const ny = prev.y + dy;
-      if (nx < 0 || nx >= GRID_SIZE || ny < 0 || ny >= GRID_SIZE) return prev;
-      if (maze[ny][nx] === 1) return prev;
-      return { x: nx, y: ny };
-    });
-  }, [isPlaying, gameOver, maze]);
-
-  // Keyboard controls
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case 'ArrowUp': case 'w': movePlayer(0, -1); break;
-        case 'ArrowDown': case 's': movePlayer(0, 1); break;
-        case 'ArrowLeft': case 'a': movePlayer(-1, 0); break;
-        case 'ArrowRight': case 'd': movePlayer(1, 0); break;
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [movePlayer]);
-
-  // Collect dots
-  useEffect(() => {
-    setDots(prev => {
-      const next = prev.filter(d => !(d.x === player.x && d.y === player.y));
-      if (next.length < prev.length) setScore(s => s + 100);
-      return next;
-    });
-  }, [player]);
-
-  // Enemy movement
-  useEffect(() => {
-    if (!isPlaying || gameOver) return;
-    const interval = setInterval(() => {
-      setEnemies(prev => prev.map(enemy => {
-        const dirs = [
-          { x: enemy.x + 1, y: enemy.y },
-          { x: enemy.x - 1, y: enemy.y },
-          { x: enemy.x, y: enemy.y + 1 },
-          { x: enemy.x, y: enemy.y - 1 },
-        ].filter(p => p.x >= 0 && p.x < GRID_SIZE && p.y >= 0 && p.y < GRID_SIZE && maze[p.y][p.x] === 0);
-        
-        // Bias toward player
-        if (dirs.length === 0) return enemy;
-        const toward = dirs.sort((a, b) => {
-          const da = Math.abs(a.x - player.x) + Math.abs(a.y - player.y);
-          const db = Math.abs(b.x - player.x) + Math.abs(b.y - player.y);
-          return da - db;
-        });
-        return Math.random() > 0.4 ? toward[0] : dirs[Math.floor(Math.random() * dirs.length)];
-      }));
-    }, 500);
-    return () => clearInterval(interval);
-  }, [isPlaying, gameOver, maze, player]);
-
-  // Check enemy collision
-  useEffect(() => {
-    if (enemies.some(e => e.x === player.x && e.y === player.y)) {
-      setLives(l => {
-        const next = l - 1;
-        if (next <= 0) { setGameOver(true); setIsPlaying(false); }
-        return next;
-      });
-      setPlayer({ x: 0, y: 0 });
-    }
-  }, [enemies, player]);
-
-  // Timer
-  useEffect(() => {
-    if (!isPlaying || gameOver) return;
-    const interval = setInterval(() => setTime(t => t + 1), 1000);
-    return () => clearInterval(interval);
-  }, [isPlaying, gameOver]);
-
-  const formatTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+  const gameHtml = PLACEHOLDER_GAME_HTML;
 
   return (
-    <AppShell>
-      <div className="h-[calc(100vh-57px)] grid-floor scanlines overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-4 md:p-6">
-          {/* Game header */}
+    <div className="h-screen bg-black flex items-center justify-center overflow-hidden">
+      {/* Arcade cabinet */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="relative flex flex-col items-center"
+        style={{ maxWidth: 640, width: '100%' }}
+      >
+        {/* Cabinet top / marquee */}
+        <div
+          className="w-full relative"
+          style={{
+            background: 'linear-gradient(180deg, #1a1a2e 0%, #0f0f1a 100%)',
+            borderRadius: '18px 18px 0 0',
+            border: '2px solid rgba(255,255,255,0.06)',
+            borderBottom: 'none',
+            padding: '12px 20px 8px',
+          }}
+        >
           <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-4"
+            animate={{
+              boxShadow: [
+                '0 0 20px rgba(0,229,255,0.3), 0 0 60px rgba(0,229,255,0.1)',
+                '0 0 30px rgba(0,229,255,0.5), 0 0 80px rgba(0,229,255,0.15)',
+                '0 0 20px rgba(0,229,255,0.3), 0 0 60px rgba(0,229,255,0.1)',
+              ],
+            }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            className="flex items-center justify-between px-4 py-2"
+            style={{
+              background: 'linear-gradient(90deg, #00e5ff22, #ff2d9522, #00e5ff22)',
+              borderRadius: 6,
+              border: '1px solid rgba(0,229,255,0.15)',
+            }}
           >
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <h2 className="font-display text-xl tracking-wider text-foreground neon-cyan">{MOCK_GENERATED_GAME.title}</h2>
-                <p className="text-xs text-muted-foreground font-body">Inspired by {MOCK_GENERATED_GAME.inspiration} · {MOCK_GENERATED_GAME.theme}</p>
-              </div>
-              <div className="flex gap-2">
-                <button className="font-display text-[10px] tracking-wider px-3 py-1.5 rounded border border-neon-magenta/50 text-neon-magenta hover:bg-neon-magenta/10 transition-colors">
-                  🎨 REGENERATE THEME
-                </button>
-                <button className="font-display text-[10px] tracking-wider px-3 py-1.5 rounded border border-primary/50 text-primary hover:bg-primary/10 transition-colors">
-                  👥 INVITE FRIEND
-                </button>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Game viewport with ambilight */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ delay: 0.2 }}
-            className="relative mb-6"
-          >
-            {/* Ambilight glow */}
-            <div className="absolute -inset-4 bg-neon-cyan/10 rounded-lg blur-xl" />
-            
-            <div className="relative bg-background border-2 border-primary/30 rounded border-glow-cyan p-4">
-              {/* HUD */}
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex gap-4">
-                  <div className="font-display text-xs tracking-wider text-primary">SCORE: <span className="text-foreground">{score}</span></div>
-                  <div className="font-display text-xs tracking-wider text-neon-magenta">LIVES: <span className="text-foreground">{'❤️'.repeat(lives)}</span></div>
-                  <div className="font-display text-xs tracking-wider text-neon-green">TIME: <span className="text-foreground">{formatTime(time)}</span></div>
-                </div>
-                <div className="flex gap-2">
-                  {!isPlaying && !gameOver && (
-                    <button onClick={() => { setIsPlaying(true); }} className="bg-neon-green text-background font-display text-[10px] tracking-wider px-3 py-1 rounded">▶ PLAY</button>
-                  )}
-                  {isPlaying && (
-                    <button onClick={() => setIsPlaying(false)} className="bg-muted text-foreground font-display text-[10px] tracking-wider px-3 py-1 rounded">⏸ PAUSE</button>
-                  )}
-                  <button onClick={resetGame} className="bg-muted text-foreground font-display text-[10px] tracking-wider px-3 py-1 rounded">↺ RESTART</button>
-                </div>
-              </div>
-
-              {/* Game grid */}
-              <div className="flex justify-center">
-                <div
-                  className="relative border border-border rounded overflow-hidden"
-                  style={{ width: GRID_SIZE * CELL_SIZE, height: GRID_SIZE * CELL_SIZE }}
-                >
-                  {/* Grid lines */}
-                  {Array.from({ length: GRID_SIZE }).map((_, y) =>
-                    Array.from({ length: GRID_SIZE }).map((_, x) => (
-                      <div
-                        key={`${x}-${y}`}
-                        className={`absolute border border-border/20 ${maze[y][x] === 1 ? 'bg-surface-elevated' : ''}`}
-                        style={{ left: x * CELL_SIZE, top: y * CELL_SIZE, width: CELL_SIZE, height: CELL_SIZE }}
-                      />
-                    ))
-                  )}
-
-                  {/* Dots */}
-                  {dots.map((d, i) => (
-                    <div
-                      key={`dot-${i}`}
-                      className="absolute w-2 h-2 bg-primary rounded-full"
-                      style={{ left: d.x * CELL_SIZE + CELL_SIZE / 2 - 4, top: d.y * CELL_SIZE + CELL_SIZE / 2 - 4 }}
-                    />
-                  ))}
-
-                  {/* Enemies */}
-                  {enemies.map((e, i) => (
-                    <div
-                      key={`enemy-${i}`}
-                      className="absolute text-lg transition-all duration-300"
-                      style={{ left: e.x * CELL_SIZE + 2, top: e.y * CELL_SIZE + 1 }}
-                    >
-                      👹
-                    </div>
-                  ))}
-
-                  {/* Player */}
-                  <div
-                    className="absolute text-xl transition-all duration-150"
-                    style={{ left: player.x * CELL_SIZE + 1, top: player.y * CELL_SIZE - 1 }}
-                  >
-                    ⚡
-                  </div>
-
-                  {/* Game over overlay */}
-                  {gameOver && (
-                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-                      <div className="text-center">
-                        <p className="font-display text-xl text-destructive mb-2 tracking-wider">GAME OVER</p>
-                        <p className="font-body text-sm text-muted-foreground mb-3">Final Score: {score}</p>
-                        <button onClick={resetGame} className="bg-primary text-primary-foreground font-display text-xs tracking-wider px-4 py-2 rounded">PLAY AGAIN</button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Start overlay */}
-                  {!isPlaying && !gameOver && time === 0 && (
-                    <div className="absolute inset-0 bg-background/80 flex items-center justify-center cursor-pointer" onClick={() => setIsPlaying(true)}>
-                      <div className="text-center">
-                        <p className="font-display text-lg text-primary mb-2 tracking-wider neon-cyan">NEON MAZE RUNNER</p>
-                        <p className="font-body text-xs text-muted-foreground mb-1">Use arrow keys or WASD to move</p>
-                        <p className="font-body text-xs text-muted-foreground">Collect dots. Avoid enemies.</p>
-                        <p className="font-display text-sm text-primary mt-3 animate-pulse tracking-wider">CLICK TO START</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Mobile controls */}
-              <div className="flex justify-center mt-4 md:hidden">
-                <div className="grid grid-cols-3 gap-1 w-32">
-                  <div />
-                  <button onClick={() => movePlayer(0,-1)} className="bg-muted text-foreground rounded p-2 text-center font-display text-xs">↑</button>
-                  <div />
-                  <button onClick={() => movePlayer(-1,0)} className="bg-muted text-foreground rounded p-2 text-center font-display text-xs">←</button>
-                  <button onClick={() => movePlayer(0,1)} className="bg-muted text-foreground rounded p-2 text-center font-display text-xs">↓</button>
-                  <button onClick={() => movePlayer(1,0)} className="bg-muted text-foreground rounded p-2 text-center font-display text-xs">→</button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Why this was generated */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-card border border-border rounded p-5"
-          >
-            <h3 className="font-display text-xs tracking-wider text-primary mb-3">WHY THIS WAS GENERATED FOR YOU</h3>
-            <p className="text-sm font-body text-muted-foreground mb-3">{MOCK_GENERATED_GAME.mechanic}</p>
-            <p className="text-sm font-body text-muted-foreground">
-              Based on your preference for <span className="text-neon-magenta">fast-paced action</span>, <span className="text-primary">classic arcade gameplay</span>, and <span className="text-neon-green">cyber-mythic aesthetics</span>, we selected a maze-chase base game with adaptive AI enemies that evolve with your playstyle.
-            </p>
-            <div className="flex flex-wrap gap-2 mt-3">
-              {['Pac-Man inspired', 'Adaptive AI', 'Neon visuals', 'Cyber-mythology', 'Dynamic difficulty'].map(tag => (
-                <span key={tag} className="text-[10px] font-display tracking-wider px-2.5 py-1 rounded-full border border-border text-muted-foreground">
-                  {tag}
-                </span>
-              ))}
-            </div>
+            <span className="font-pixel text-[8px] text-cyan-400/80 tracking-[0.3em]">ARCADIA</span>
+            <span className="font-pixel text-[7px] text-white/40 tracking-widest">{MOCK_GENERATED_GAME.title.toUpperCase()}</span>
+            <span className="font-pixel text-[8px] text-cyan-400/80 tracking-[0.3em]">P1</span>
           </motion.div>
         </div>
-      </div>
-    </AppShell>
+
+        {/* Screen bezel */}
+        <div
+          className="w-full relative"
+          style={{
+            background: 'linear-gradient(180deg, #0f0f1a 0%, #0a0a14 100%)',
+            border: '2px solid rgba(255,255,255,0.06)',
+            borderTop: 'none',
+            padding: '6px 16px 12px',
+          }}
+        >
+          {/* Screen glow */}
+          <div
+            className="absolute inset-0 pointer-events-none"
+            style={{
+              background: 'radial-gradient(ellipse at 50% 40%, rgba(0,229,255,0.04) 0%, transparent 70%)',
+            }}
+          />
+
+          {/* The actual game screen */}
+          <div
+            className="relative w-full overflow-hidden"
+            style={{
+              aspectRatio: '1',
+              borderRadius: 4,
+              border: '2px solid rgba(255,255,255,0.08)',
+              boxShadow: 'inset 0 0 30px rgba(0,0,0,0.8), 0 0 40px rgba(0,229,255,0.08)',
+            }}
+          >
+            {/* Scanlines overlay */}
+            <div
+              className="absolute inset-0 pointer-events-none z-10"
+              style={{
+                background: 'repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.15) 2px, rgba(0,0,0,0.15) 4px)',
+              }}
+            />
+
+            {/* Screen edge vignette */}
+            <div
+              className="absolute inset-0 pointer-events-none z-10"
+              style={{
+                boxShadow: 'inset 0 0 60px rgba(0,0,0,0.5)',
+                borderRadius: 4,
+              }}
+            />
+
+            {/* Game iframe */}
+            <iframe
+              srcDoc={gameHtml}
+              className="w-full h-full border-0"
+              style={{ display: 'block', background: '#0a0a1a' }}
+              sandbox="allow-scripts"
+              title="Arcade Game"
+            />
+          </div>
+        </div>
+
+        {/* Controls panel */}
+        <div
+          className="w-full flex items-center justify-between px-6 py-4"
+          style={{
+            background: 'linear-gradient(180deg, #0a0a14 0%, #12121f 100%)',
+            border: '2px solid rgba(255,255,255,0.06)',
+            borderTop: 'none',
+            borderRadius: '0 0 12px 12px',
+          }}
+        >
+          {/* Joystick visual */}
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col items-center">
+              <div className="w-[3px] h-[14px] rounded-full bg-white/15" />
+              <div className="w-[12px] h-[12px] rounded-full bg-white/8 border border-white/15" />
+            </div>
+            <span className="font-pixel text-[6px] text-white/20 tracking-widest">WASD / ARROWS</span>
+          </div>
+
+          {/* Back button */}
+          <button
+            onClick={() => navigate('/lobby')}
+            className="font-pixel text-[7px] tracking-widest px-4 py-2 border border-white/10 text-white/40 hover:text-cyan-400 hover:border-cyan-400/30 transition-colors"
+          >
+            EXIT GAME
+          </button>
+
+          {/* Decorative buttons */}
+          <div className="flex items-center gap-2">
+            <motion.div
+              animate={{ boxShadow: ['0 0 4px #ff2d9544', '0 0 10px #ff2d9599', '0 0 4px #ff2d9544'] }}
+              transition={{ duration: 1.8, repeat: Infinity }}
+              className="w-[10px] h-[10px] rounded-full"
+              style={{ background: '#ff2d9566' }}
+            />
+            <motion.div
+              animate={{ boxShadow: ['0 0 4px #00e5ff44', '0 0 10px #00e5ff99', '0 0 4px #00e5ff44'] }}
+              transition={{ duration: 2.2, repeat: Infinity }}
+              className="w-[10px] h-[10px] rounded-full"
+              style={{ background: '#00e5ff66' }}
+            />
+            <div className="w-[10px] h-[10px] rounded-full bg-white/8" />
+          </div>
+        </div>
+
+        {/* Cabinet shadow */}
+        <div
+          className="absolute -bottom-4 left-1/2 -translate-x-1/2 pointer-events-none"
+          style={{
+            width: '80%',
+            height: 20,
+            borderRadius: '50%',
+            background: 'radial-gradient(ellipse, rgba(0,229,255,0.08) 0%, transparent 70%)',
+            filter: 'blur(8px)',
+          }}
+        />
+      </motion.div>
+    </div>
   );
 }
