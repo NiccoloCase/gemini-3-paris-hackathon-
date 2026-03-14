@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { randomUUID } from "node:crypto";
 import { logError, logInfo } from "../core/logger.js";
 import { GenEngineService } from "./gen_engine/service.js";
+import { createChatRoutes } from "./chat/routes.js";
 import {
   VerifiedWebGameService,
   WebGameGenerationValidationError,
@@ -43,6 +44,8 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
       storytellingEngineService,
       verifiedWebGameService,
     });
+
+  router.use("/chat", createChatRoutes({ apiKey: options.apiKey }));
 
   router.post("/gen_engine", async (req: Request, res: Response) => {
     try {
