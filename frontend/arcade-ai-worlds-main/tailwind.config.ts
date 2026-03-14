@@ -14,8 +14,10 @@ export default {
     },
     extend: {
       fontFamily: {
-        display: ['Orbitron', 'sans-serif'],
-        body: ['Inter', 'sans-serif'],
+        display: ['Orbitron', 'monospace'],
+        body: ['VT323', 'monospace'],
+        pixel: ['"Press Start 2P"', 'monospace'],
+        terminal: ['VT323', 'monospace'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -59,6 +61,7 @@ export default {
           cyan: "hsl(var(--neon-cyan))",
           magenta: "hsl(var(--neon-magenta))",
           green: "hsl(var(--neon-green))",
+          yellow: "hsl(var(--neon-yellow))",
         },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",

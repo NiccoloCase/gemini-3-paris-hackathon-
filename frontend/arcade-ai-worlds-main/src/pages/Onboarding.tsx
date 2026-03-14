@@ -16,22 +16,16 @@ export default function OnboardingPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
+  const [answers, setAnswers] = useState<string[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Initial AI greeting
     setTimeout(() => {
-      setMessages([{
-        role: 'ai',
-        text: "Hey there! 👾 Welcome to ARCADIA. I'm your AI game curator. Let me learn your vibe so I can build something amazing for you."
-      }]);
+      setMessages([{ role: 'ai', text: 'SYSTEM ONLINE. AI CURATOR INITIALIZED.' }]);
       setTimeout(() => {
-        setMessages(prev => [...prev, {
-          role: 'ai',
-          text: ONBOARDING_QUESTIONS[0].question
-        }]);
-      }, 800);
-    }, 500);
+        setMessages(prev => [...prev, { role: 'ai', text: ONBOARDING_QUESTIONS[0].question }]);
+      }, 900);
+    }, 400);
   }, []);
 
   useEffect(() => {
@@ -40,31 +34,23 @@ export default function OnboardingPage() {
 
   const handleAnswer = (answer: string) => {
     addAnswer(answer);
+    setAnswers(prev => [...prev, answer]);
     setMessages(prev => [...prev, { role: 'user', text: answer }]);
     setIsTyping(true);
 
     setTimeout(() => {
       setIsTyping(false);
       const q = ONBOARDING_QUESTIONS[currentQ];
-
       if (currentQ < ONBOARDING_QUESTIONS.length - 1) {
         setMessages(prev => [...prev, { role: 'ai', text: q.aiMessage }]);
         setTimeout(() => {
-          const nextQ = currentQ + 1;
-          setCurrentQ(nextQ);
-          setMessages(prev => [...prev, {
-            role: 'ai',
-            text: ONBOARDING_QUESTIONS[nextQ].question
-          }]);
-        }, 600);
+          const next = currentQ + 1;
+          setCurrentQ(next);
+          setMessages(prev => [...prev, { role: 'ai', text: ONBOARDING_QUESTIONS[next].question }]);
+        }, 700);
       } else {
-        setMessages(prev => [...prev, {
-          role: 'ai',
-          text: "🎯 Got it! Here's what I've learned about you:"
-        }]);
-        setTimeout(() => {
-          setShowSummary(true);
-        }, 800);
+        setMessages(prev => [...prev, { role: 'ai', text: 'PROFILE COMPUTED. GENERATING TASTE VECTOR...' }]);
+        setTimeout(() => setShowSummary(true), 900);
       }
     }, 1000);
   };
@@ -75,120 +61,128 @@ export default function OnboardingPage() {
   };
 
   const currentQuestion = ONBOARDING_QUESTIONS[currentQ];
+  const progress = Math.round((currentQ / ONBOARDING_QUESTIONS.length) * 100);
 
   return (
-    <div className="min-h-screen bg-background grid-floor scanlines flex flex-col">
+    <div className="min-h-screen bg-black flex flex-col font-terminal">
+
       {/* Header */}
-      <div className="border-b border-border bg-card/50 backdrop-blur-xl px-6 py-4">
+      <div className="border-b-2 border-primary bg-black px-6 py-3 flex items-center justify-between border-glow-cyan">
+        <div className="font-pixel text-[8px] neon-cyan tracking-widest">ARCADIA_AI v2.0</div>
         <div className="flex items-center gap-3">
-          <span className="text-2xl">🤖</span>
-          <div>
-            <h2 className="font-display text-sm tracking-wider text-primary neon-cyan">ARCADIA AI</h2>
-            <p className="text-xs text-muted-foreground font-body">Building your personalized arcade…</p>
-          </div>
-          <div className="ml-auto flex gap-1">
+          <div className="flex gap-1.5">
             {ONBOARDING_QUESTIONS.map((_, i) => (
               <div
                 key={i}
-                className={`w-8 h-1 rounded-full transition-colors ${
-                  i <= currentQ ? 'bg-primary' : 'bg-border'
-                }`}
+                className={`w-6 h-1.5 transition-colors ${i < currentQ ? 'bg-neon-green' : i === currentQ ? 'bg-primary animate-pulse-glow' : 'bg-muted'}`}
               />
             ))}
           </div>
+          <span className="font-pixel text-[7px] text-muted-foreground">{progress}%</span>
         </div>
       </div>
 
-      {/* Chat area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-6 max-w-2xl mx-auto w-full">
+      {/* Chat */}
+      <div
+        ref={scrollRef}
+        className="flex-1 overflow-y-auto px-4 py-6 max-w-2xl mx-auto w-full"
+      >
         <div className="space-y-4">
           <AnimatePresence>
             {messages.map((msg, i) => (
               <motion.div
                 key={i}
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                transition={{ duration: 0.3 }}
+                initial={{ opacity: 0, x: msg.role === 'user' ? 20 : -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.25 }}
                 className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
               >
-                <div className={`max-w-[80%] rounded px-4 py-3 text-sm font-body ${
+                {msg.role === 'ai' && (
+                  <span className="font-pixel text-[7px] text-neon-green mr-2 mt-1 shrink-0">AI&gt;</span>
+                )}
+                <div className={`max-w-[78%] px-4 py-3 text-lg font-terminal border ${
                   msg.role === 'user'
-                    ? 'bg-primary/20 border border-primary/30 text-foreground'
-                    : 'bg-card border border-border text-foreground'
+                    ? 'border-primary text-primary bg-primary/8 border-glow-cyan text-right'
+                    : 'border-neon-green/40 text-neon-green bg-neon-green/5'
                 }`}>
                   {msg.text}
                 </div>
+                {msg.role === 'user' && (
+                  <span className="font-pixel text-[7px] text-primary ml-2 mt-1 shrink-0">&lt;P1</span>
+                )}
               </motion.div>
             ))}
           </AnimatePresence>
 
+          {/* Typing indicator */}
           {isTyping && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex justify-start"
+              className="flex items-center gap-2"
             >
-              <div className="bg-card border border-border rounded px-4 py-3">
-                <div className="flex gap-1">
-                  <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-2 h-2 bg-primary rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
+              <span className="font-pixel text-[7px] text-neon-green">AI&gt;</span>
+              <div className="flex gap-1">
+                {[0, 1, 2].map(i => (
+                  <div
+                    key={i}
+                    className="w-2 h-2 bg-neon-green"
+                    style={{ animation: `pulse-glow 0.8s ease-in-out infinite`, animationDelay: `${i * 0.2}s` }}
+                  />
+                ))}
               </div>
             </motion.div>
           )}
 
-          {/* Summary card */}
+          {/* Summary */}
           {showSummary && (
             <motion.div
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="bg-card border border-primary/30 rounded p-5 border-glow-cyan"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="border-2 border-primary p-5 border-glow-cyan"
             >
-              <h3 className="font-display text-sm tracking-wider text-primary mb-3">YOUR ARCADE PROFILE</h3>
-              <p className="text-sm text-muted-foreground font-body mb-4">
-                You like arcade action, fast pacing, and cyber-mythic aesthetics. You thrive in chaos and love neon-drenched worlds.
-              </p>
+              <div className="font-pixel text-[8px] neon-cyan mb-4 tracking-widest">▓ ARCADE PROFILE COMPUTED ▓</div>
               <div className="flex flex-wrap gap-2 mb-5">
-                {['Fast-paced', 'Arcade Classic Lover', 'Neon Sci-fi', 'Chaos-friendly', 'Competitive'].map(tag => (
-                  <span key={tag} className="text-xs font-display tracking-wider px-3 py-1 rounded-full border border-neon-magenta/50 text-neon-magenta bg-neon-magenta/10">
-                    {tag}
+                {answers.map((a, i) => (
+                  <span key={i} className="font-pixel text-[7px] px-2 py-1 border border-neon-magenta text-neon-magenta">
+                    {a.toUpperCase()}
                   </span>
                 ))}
               </div>
               <button
                 onClick={handleGenerate}
-                className="w-full bg-primary text-primary-foreground font-display text-sm font-bold tracking-wider py-3 rounded border-glow-cyan hover:brightness-110 transition-all"
+                className="w-full bg-primary text-black font-pixel text-[9px] tracking-widest py-4 hover:brightness-125 active:scale-95 transition-all border-glow-cyan"
               >
-                🎮 GENERATE MY GAME
+                ► GENERATE MY GAME ◄
               </button>
             </motion.div>
           )}
         </div>
       </div>
 
-      {/* Options bar */}
-      {!showSummary && !isTyping && currentQ < ONBOARDING_QUESTIONS.length && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="border-t border-border bg-card/50 backdrop-blur-xl px-4 py-4"
-        >
-          <div className="max-w-2xl mx-auto">
-            <div className="flex flex-wrap gap-2 justify-center">
+      {/* Options */}
+      <AnimatePresence>
+        {!showSummary && !isTyping && currentQ < ONBOARDING_QUESTIONS.length && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            className="border-t-2 border-primary bg-black px-4 py-4"
+          >
+            <div className="max-w-2xl mx-auto flex flex-wrap gap-2 justify-center">
               {currentQuestion.options.map(opt => (
                 <button
                   key={opt}
                   onClick={() => handleAnswer(opt)}
-                  className="font-body text-sm px-4 py-2 rounded border border-border bg-card hover:border-primary hover:text-primary transition-colors"
+                  className="font-terminal text-xl px-5 py-2 border border-muted text-muted-foreground hover:border-primary hover:text-primary hover:border-glow-cyan active:bg-primary/10 transition-all"
                 >
-                  {opt}
+                  {opt.toUpperCase()}
                 </button>
               ))}
             </div>
-          </div>
-        </motion.div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

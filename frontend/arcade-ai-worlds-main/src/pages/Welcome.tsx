@@ -1,152 +1,192 @@
-import { useState } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useApp } from '@/lib/AppContext';
 import { useNavigate } from 'react-router-dom';
 
-export default function WelcomePage() {
-  const { setLoggedIn, setUsername, setOnboarded } = useApp();
-  const navigate = useNavigate();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [name, setName] = useState('');
+const STARS = Array.from({ length: 40 }, (_, i) => ({
+  id: i,
+  x: (i * 37 + 13) % 100,
+  y: (i * 53 + 7) % 100,
+  delay: (i * 0.17) % 4,
+  duration: 2 + (i % 4),
+}));
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    setUsername(name || 'Player_One');
+const MARQUEE_TEXT = '★ ARCADIA ★ AI-POWERED ARCADE ★ GENERATE YOUR WORLD ★ PLAY WITH FRIENDS ★ HIGH SCORE ★ ARCADIA ★ AI-POWERED ARCADE ★ GENERATE YOUR WORLD ★ PLAY WITH FRIENDS ★ HIGH SCORE ★ ';
+
+export default function WelcomePage() {
+  const { setLoggedIn, setUsername } = useApp();
+  const navigate = useNavigate();
+  const [mode, setMode] = useState<'attract' | 'enter'>('attract');
+  const [name, setName] = useState('');
+  const [typed, setTyped] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const subtitle = 'AI-POWERED ARCADE WORLDS';
+
+  useEffect(() => {
+    const t = setInterval(() => setTyped(n => (n >= subtitle.length ? 0 : n + 1)), 90);
+    return () => clearInterval(t);
+  }, []);
+
+  useEffect(() => {
+    if (mode === 'enter') setTimeout(() => inputRef.current?.focus(), 100);
+  }, [mode]);
+
+  const handleStart = () => {
+    setUsername(name.trim() || 'PLAYER_ONE');
     setLoggedIn(true);
     navigate('/onboarding');
   };
 
   const handleGuest = () => {
-    setUsername('Guest_' + Math.floor(Math.random() * 9999));
+    setUsername('GUEST_' + String(Math.floor(Math.random() * 9999)).padStart(4, '0'));
     setLoggedIn(true);
     navigate('/onboarding');
   };
 
-  const features = [
-    { icon: '🕹️', title: 'Social Lobby', desc: 'Hang out with other players in a live virtual arcade.' },
-    { icon: '🤖', title: 'AI Preference Chat', desc: 'Tell our AI your vibe and watch it craft your game.' },
-    { icon: '🎮', title: 'Personalized Game', desc: 'A unique arcade game generated just for you.' },
-  ];
-
   return (
-    <div className="min-h-screen bg-background grid-floor scanlines flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Ambient glow effects */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-neon-cyan/5 rounded-full blur-[120px]" />
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-neon-magenta/5 rounded-full blur-[120px]" />
+    <div
+      className="min-h-screen bg-black pixel-grid crt-flicker flex flex-col items-center justify-center relative overflow-hidden select-none"
+      onClick={mode === 'attract' ? () => setMode('enter') : undefined}
+      style={{ cursor: mode === 'attract' ? 'pointer' : 'default' }}
+    >
+      <div className="scanline-bar" />
 
-      <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-        className="w-full max-w-md relative z-10"
-      >
-        {/* Logo */}
-        <div className="text-center mb-8">
+      {/* Stars */}
+      <div className="absolute inset-0 pointer-events-none">
+        {STARS.map(s => (
           <motion.div
-            initial={{ scale: 0.8, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            transition={{ delay: 0.2, duration: 0.5 }}
-          >
-            <h1 className="font-display text-5xl md:text-6xl font-black tracking-wider mb-2">
-              <span className="text-foreground">ARC</span>
-              <span className="text-neon-magenta neon-magenta">A</span>
-              <span className="text-foreground">DIA</span>
-            </h1>
-          </motion.div>
-          <motion.p
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="text-muted-foreground font-body text-sm tracking-wide"
-          >
-            AI-generated arcade worlds, co-created with your vibe.
-          </motion.p>
-        </div>
+            key={s.id}
+            className="absolute w-px h-px bg-white"
+            style={{ left: `${s.x}%`, top: `${s.y}%` }}
+            animate={{ opacity: [0.1, 0.7, 0.1] }}
+            transition={{ duration: s.duration, repeat: Infinity, delay: s.delay }}
+          />
+        ))}
+      </div>
 
-        {/* Login Card */}
+      {/* Main */}
+      <div className="relative z-10 text-center w-full max-w-lg px-6">
+
+        {/* Logo */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          className="mb-10"
+          initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-card/80 backdrop-blur-xl border border-border rounded p-6 mb-6 border-glow-cyan"
+          transition={{ duration: 0.6, ease: 'easeOut' }}
         >
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="block text-xs font-display text-muted-foreground mb-1.5 tracking-wider uppercase">Username</label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="NeonKnight"
-                className="w-full bg-input border border-border rounded px-3 py-2.5 text-foreground font-body text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-neon-cyan focus:ring-1 focus:ring-neon-cyan/30 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-display text-muted-foreground mb-1.5 tracking-wider uppercase">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="player@arcadia.gg"
-                className="w-full bg-input border border-border rounded px-3 py-2.5 text-foreground font-body text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-neon-cyan focus:ring-1 focus:ring-neon-cyan/30 transition-colors"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-display text-muted-foreground mb-1.5 tracking-wider uppercase">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                className="w-full bg-input border border-border rounded px-3 py-2.5 text-foreground font-body text-sm placeholder:text-muted-foreground/50 focus:outline-none focus:border-neon-cyan focus:ring-1 focus:ring-neon-cyan/30 transition-colors"
-              />
-            </div>
-
-            <button
-              type="submit"
-              className="w-full bg-primary text-primary-foreground font-display text-sm font-bold tracking-wider py-3 rounded border-glow-cyan hover:brightness-110 transition-all"
-            >
-              ENTER ARCADIA
-            </button>
-          </form>
-
-          <div className="flex items-center gap-3 my-4">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground font-body">or</span>
-            <div className="flex-1 h-px bg-border" />
-          </div>
-
-          <button
-            onClick={handleGuest}
-            className="w-full border border-border text-muted-foreground font-display text-xs tracking-wider py-2.5 rounded hover:border-neon-magenta hover:text-neon-magenta transition-colors"
+          <h1
+            className="font-display font-black tracking-[0.15em] glitch mx-auto w-fit"
+            style={{ fontSize: 'clamp(3.5rem, 12vw, 6rem)', textIndent: '0.15em' }}
           >
-            CONTINUE AS GUEST
-          </button>
+            <span className="neon-cyan">ARC</span>
+            <span className="neon-magenta">A</span>
+            <span className="neon-cyan">DIA</span>
+          </h1>
+          <div className="h-8 mt-3 flex items-center justify-center">
+            <p className="font-pixel text-[12px] text-neon-yellow tracking-widest">
+              {subtitle.slice(0, typed)}
+              <span className="animate-blink" style={{ opacity: typed < subtitle.length ? 1 : 0 }}>▌</span>
+            </p>
+          </div>
         </motion.div>
 
-        {/* Feature Cards */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.7 }}
-          className="grid grid-cols-3 gap-3"
-        >
-          {features.map((f, i) => (
+        <AnimatePresence mode="wait">
+          {mode === 'attract' ? (
             <motion.div
-              key={f.title}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 + i * 0.1 }}
-              className="bg-card/50 border border-border rounded p-3 text-center hover:border-neon-cyan/50 transition-colors"
+              key="attract"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.3 }}
             >
-              <div className="text-2xl mb-2">{f.icon}</div>
-              <h3 className="font-display text-[10px] tracking-wider text-foreground mb-1">{f.title}</h3>
-              <p className="text-[10px] text-muted-foreground font-body leading-tight">{f.desc}</p>
+              {/* Score board */}
+              <div className="flex justify-center gap-12 mb-12">
+                {[
+                  { label: '1UP', value: '000000', color: 'neon-cyan' },
+                  { label: 'HI-SCORE', value: '999999', color: 'neon-yellow' },
+                  { label: '2UP', value: '000000', color: 'text-muted-foreground' },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="font-pixel text-center">
+                    <div className="text-[7px] text-muted-foreground mb-1">{label}</div>
+                    <div className={`text-[11px] ${color}`}>{value}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Insert coin */}
+              <motion.div
+                animate={{ opacity: [1, 0, 1] }}
+                transition={{ duration: 1.1, repeat: Infinity }}
+                className="font-pixel text-[11px] neon-yellow tracking-widest mb-8"
+              >
+                ◄ INSERT COIN ►
+              </motion.div>
+
+              <p className="font-pixel text-[7px] text-muted-foreground tracking-widest">
+                PRESS ANY KEY TO CONTINUE
+              </p>
             </motion.div>
-          ))}
-        </motion.div>
-      </motion.div>
+          ) : (
+            <motion.div
+              key="enter"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.3 }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Credits bar */}
+              <div className="flex justify-between mb-6 font-pixel text-[7px]">
+                <span className="text-muted-foreground">CREDIT  01</span>
+                <span className="neon-green animate-blink">READY !</span>
+              </div>
+
+              {/* Name input */}
+              <div className="border border-primary p-5 mb-4 border-glow-cyan">
+                <label className="block font-pixel text-[7px] text-muted-foreground mb-4 tracking-widest">
+                  ENTER YOUR NAME
+                </label>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, '').slice(0, 10))}
+                  onKeyDown={e => e.key === 'Enter' && handleStart()}
+                  placeholder="PLAYER_ONE"
+                  maxLength={10}
+                  className="w-full bg-transparent border-b-2 border-primary text-primary font-pixel text-base tracking-widest text-left pb-2 placeholder:text-primary/25 focus:outline-none"
+                  style={{ caretColor: 'hsl(180 100% 50%)' }}
+                />
+                <div className="font-pixel text-[7px] text-muted-foreground text-right mt-2">
+                  {name.length}/10
+                </div>
+              </div>
+
+              <button
+                onClick={handleStart}
+                className="w-full bg-primary text-black font-pixel text-[10px] tracking-widest py-4 mb-3 hover:brightness-125 active:scale-95 transition-all border-glow-cyan"
+              >
+                ► PRESS START ◄
+              </button>
+
+              <button
+                onClick={handleGuest}
+                className="w-full border border-muted text-muted-foreground font-pixel text-[7px] tracking-widest py-3 hover:border-neon-magenta hover:text-neon-magenta transition-colors"
+              >
+                CONTINUE AS GUEST
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Marquee */}
+      <div className="absolute bottom-5 left-0 right-0 overflow-hidden">
+        <div className="font-pixel text-[7px] text-muted-foreground/30 animate-marquee">
+          {MARQUEE_TEXT}
+        </div>
+      </div>
     </div>
   );
 }
