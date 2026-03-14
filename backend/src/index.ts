@@ -38,8 +38,8 @@ app.use((req, res, next) => {
 });
 
 const PORT = Number(process.env.PORT) || 3000;
-const isProduction = process.env.NODE_ENV === "production";
 const frontendDistPath = path.resolve(__dirname, "../../frontend/dist");
+const hasFrontendBuild = existsSync(frontendDistPath);
 
 function mustEnv(name: string): string {
   const value = process.env[name];
@@ -55,7 +55,7 @@ const GEMINI_API_KEY = mustEnv("GEMINI_API_KEY");
 
 app.use(createRootRoutes({ apiKey: GEMINI_API_KEY }));
 
-if (isProduction && existsSync(frontendDistPath)) {
+if (hasFrontendBuild) {
   app.use(express.static(frontendDistPath));
   app.get("/{*path}", (req, res, next) => {
     if (req.path.startsWith("/ai")) {
@@ -78,7 +78,7 @@ async function start() {
     initSocket(httpServer);
 
     httpServer.listen(PORT, () => {
-      logInfo("server_started", { port: PORT });
+      logInfo("server_started", { port: PORT, hasFrontendBuild, frontendDistPath });
     });
   } catch (error) {
     logError("startup_error", error);
