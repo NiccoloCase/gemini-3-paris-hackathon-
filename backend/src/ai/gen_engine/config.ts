@@ -1,14 +1,12 @@
 export type GenEngineRuntimeConfig = {
   maxIterations: number;
   runTimeoutMs: number;
-  totalTimeoutMs: number;
 };
 
 export function getGenEngineRuntimeConfig(): GenEngineRuntimeConfig {
   return {
     maxIterations: intFromEnv("GEN_ENGINE_MAX_ITERATIONS", 5, 1, 10),
     runTimeoutMs: intFromEnv("GEN_ENGINE_RUN_TIMEOUT_MS", 4000, 1000, 20000),
-    totalTimeoutMs: intFromEnv("GEN_ENGINE_TOTAL_TIMEOUT_MS", 180000, 5000, 300000),
   };
 }
 

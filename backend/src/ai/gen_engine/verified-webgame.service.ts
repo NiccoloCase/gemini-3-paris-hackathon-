@@ -35,18 +35,6 @@ export class WebGameGenerationValidationError extends Error {
   }
 }
 
-export class WebGameValidationTimeoutError extends Error {
-  readonly timeoutMs: number;
-  readonly phase: string;
-
-  constructor(timeoutMs: number, phase: string) {
-    super(`Validation timed out after ${timeoutMs}ms (phase: ${phase})`);
-    this.name = "WebGameValidationTimeoutError";
-    this.timeoutMs = timeoutMs;
-    this.phase = phase;
-  }
-}
-
 export class VerifiedWebGameService {
   private readonly genEngineService: GenEngineService;
   private readonly runner: BrowserRunner;
@@ -89,79 +77,75 @@ export class VerifiedWebGameService {
     }, 10_000);
 
     try {
-      const workflowResult = await withTimeout(
-        runAutoFixWorkflow({
-          maxIterations: config.maxIterations,
-          generateInitialHtml: async () => {
-            currentIteration = 1;
-            currentPromptType = "generate";
-            updatePhase("generation_started", { promptType: "generate" });
-            const generated = await this.genEngineService.generateWebGameHtml(
-              input.gameDescription,
-              input.size,
-            );
-            updatePhase("generation_completed", {
-              promptType: "generate",
-              htmlLength: generated.html.length,
-            });
-            return generated.html;
-          },
-          generateRepairedHtml: async ({
+      const workflowResult = await runAutoFixWorkflow({
+        maxIterations: config.maxIterations,
+        generateInitialHtml: async () => {
+          currentIteration = 1;
+          currentPromptType = "generate";
+          updatePhase("generation_started", { promptType: "generate" });
+          const generated = await this.genEngineService.generateWebGameHtml(
+            input.gameDescription,
+            input.size,
+          );
+          updatePhase("generation_completed", {
+            promptType: "generate",
+            htmlLength: generated.html.length,
+          });
+          return generated.html;
+        },
+        generateRepairedHtml: async ({
+          previousHtml,
+          errorSummary,
+          iteration,
+        }) => {
+          currentIteration = iteration;
+          currentPromptType = "repair";
+          updatePhase("generation_started", {
+            promptType: "repair",
+            previousErrorCount: errorSummary.length,
+          });
+          const repaired = await this.genEngineService.repairWebGameHtml({
+            gameDescription: input.gameDescription,
+            squareSize: input.size,
             previousHtml,
             errorSummary,
             iteration,
-          }) => {
-            currentIteration = iteration;
-            currentPromptType = "repair";
-            updatePhase("generation_started", {
-              promptType: "repair",
-              previousErrorCount: errorSummary.length,
-            });
-            const repaired = await this.genEngineService.repairWebGameHtml({
-              gameDescription: input.gameDescription,
-              squareSize: input.size,
-              previousHtml,
-              errorSummary,
-              iteration,
-            });
-            updatePhase("generation_completed", {
-              promptType: "repair",
-              htmlLength: repaired.html.length,
-            });
-            return repaired.html;
-          },
-          executeHtml: async (html) => {
-            updatePhase("runtime_check_started", {
-              timeoutMs: config.runTimeoutMs,
-              htmlLength: html.length,
-            });
-            const result = await this.runner.run(html, config.runTimeoutMs, {
-              traceId: input.traceId,
-              iteration: currentIteration,
-              promptType: currentPromptType,
-            });
-            updatePhase("runtime_check_completed", {
-              durationMs: result.durationMs,
-              pageErrorCount: result.pageErrors.length,
-              consoleErrorCount: result.consoleErrors.length,
-              externalRequestCount: result.externalRequests.length,
-            });
-            return result;
-          },
-          onAttempt: async (attempt) => {
-            currentIteration = attempt.iteration;
-            updatePhase("attempt_completed", {
-              promptType: attempt.promptType,
-              passed: attempt.passed,
-              durationMs: attempt.runtime.durationMs,
-              errorCount: attempt.errorSummary.length,
-              errors: attempt.errorSummary,
-            });
-          },
-        }),
-        config.totalTimeoutMs,
-        () => currentPhase,
-      );
+          });
+          updatePhase("generation_completed", {
+            promptType: "repair",
+            htmlLength: repaired.html.length,
+          });
+          return repaired.html;
+        },
+        executeHtml: async (html) => {
+          updatePhase("runtime_check_started", {
+            timeoutMs: config.runTimeoutMs,
+            htmlLength: html.length,
+          });
+          const result = await this.runner.run(html, config.runTimeoutMs, {
+            traceId: input.traceId,
+            iteration: currentIteration,
+            promptType: currentPromptType,
+          });
+          updatePhase("runtime_check_completed", {
+            durationMs: result.durationMs,
+            pageErrorCount: result.pageErrors.length,
+            consoleErrorCount: result.consoleErrors.length,
+            externalRequestCount: result.externalRequests.length,
+          });
+          return result;
+        },
+        onAttempt: async (attempt) => {
+          currentIteration = attempt.iteration;
+          updatePhase("attempt_completed", {
+            promptType: attempt.promptType,
+            passed: attempt.passed,
+            durationMs: attempt.runtime.durationMs,
+            errorCount: attempt.errorSummary.length,
+            errors: attempt.errorSummary,
+          });
+        },
+      });
 
       if (workflowResult.status === "succeeded") {
         logInfo("webgame_validation_succeeded", {
@@ -199,26 +183,4 @@ export class VerifiedWebGameService {
       clearInterval(heartbeat);
     }
   }
-}
-
-function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  getPhase: () => string,
-): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(new WebGameValidationTimeoutError(timeoutMs, getPhase()));
-    }, timeoutMs);
-
-    promise
-      .then((value) => {
-        clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((error) => {
-        clearTimeout(timer);
-        reject(error);
-      });
-  });
 }

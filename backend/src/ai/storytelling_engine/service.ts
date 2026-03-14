@@ -24,18 +24,6 @@ export class StorytellingUserNotFoundError extends Error {
   }
 }
 
-export class StorytellingModelTimeoutError extends Error {
-  readonly timeoutMs: number;
-  readonly attempt: number;
-
-  constructor(timeoutMs: number, attempt: number) {
-    super(`Storytelling model timed out after ${timeoutMs}ms on attempt ${attempt}`);
-    this.name = "StorytellingModelTimeoutError";
-    this.timeoutMs = timeoutMs;
-    this.attempt = attempt;
-  }
-}
-
 const EXCLUDED_TOP_LEVEL_KEYS = new Set([
   "_id",
   "__v",
@@ -59,7 +47,6 @@ const MAX_OBJECT_KEYS = 12;
 const MAX_STRING_LENGTH = 180;
 const MAX_DEPTH = 2;
 const DEFAULT_MAX_GENERATION_ATTEMPTS = 1;
-const DEFAULT_MODEL_TIMEOUT_MS = 25_000;
 
 const defaultUserModel = createDefaultUserModel();
 
@@ -84,16 +71,11 @@ export class StorytellingEngineService {
       "STORYTELLING_MAX_GENERATION_ATTEMPTS",
       DEFAULT_MAX_GENERATION_ATTEMPTS,
     );
-    const modelTimeoutMs = readPositiveIntFromEnv(
-      "STORYTELLING_MODEL_TIMEOUT_MS",
-      DEFAULT_MODEL_TIMEOUT_MS,
-    );
 
     logInfo("storytelling_generation_started", {
       traceId,
       userId,
       maxAttempts,
-      modelTimeoutMs,
     });
 
     const heartbeat = setInterval(() => {
@@ -150,11 +132,7 @@ export class StorytellingEngineService {
         });
         try {
           currentPhase = "model_invoke";
-          const response = await withTimeout(
-            this.model.invoke(prompt),
-            modelTimeoutMs,
-            () => new StorytellingModelTimeoutError(modelTimeoutMs, attempt),
-          );
+          const response = await this.model.invoke(prompt);
 
           currentPhase = "parse_response";
           const rawOutput = responseContentToText(response.content);
@@ -423,26 +401,4 @@ function readPositiveIntFromEnv(name: string, fallback: number): number {
   const value = Number(raw);
   if (!Number.isInteger(value) || value <= 0) return fallback;
   return value;
-}
-
-function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  createError: () => Error,
-): Promise<T> {
-  return new Promise<T>((resolve, reject) => {
-    const timer = setTimeout(() => {
-      reject(createError());
-    }, timeoutMs);
-
-    promise
-      .then((value) => {
-        clearTimeout(timer);
-        resolve(value);
-      })
-      .catch((error) => {
-        clearTimeout(timer);
-        reject(error);
-      });
-  });
 }

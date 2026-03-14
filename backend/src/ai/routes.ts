@@ -5,11 +5,9 @@ import { GenEngineService } from "./gen_engine/service.js";
 import {
   VerifiedWebGameService,
   WebGameGenerationValidationError,
-  WebGameValidationTimeoutError,
 } from "./gen_engine/verified-webgame.service.js";
 import { GameGenerationWorkflowService } from "./game_generation/service.js";
 import {
-  StorytellingModelTimeoutError,
   StorytellingEngineService,
   StorytellingUserNotFoundError,
 } from "./storytelling_engine/service.js";
@@ -108,16 +106,6 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
         });
       }
 
-      if (error instanceof WebGameValidationTimeoutError) {
-        return res.status(504).json({
-          error: "Webgame validation timed out",
-          traceId,
-          timeoutMs: error.timeoutMs,
-          phase: error.phase,
-          hint: "Increase GEN_ENGINE_TOTAL_TIMEOUT_MS for larger generations.",
-        });
-      }
-
       logError("ai_gen_engine_webgame_route_error", error, { traceId });
       return res
         .status(500)
@@ -146,14 +134,6 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
         if (error instanceof StorytellingUserNotFoundError) {
           return res.status(404).json({ error: error.message });
         }
-        if (error instanceof StorytellingModelTimeoutError) {
-          return res.status(504).json({
-            error: "Storytelling generation timed out",
-            timeoutMs: error.timeoutMs,
-            attempt: error.attempt,
-          });
-        }
-
         logError("ai_storytelling_engine_route_error", error, { userId });
         return res
           .status(500)
@@ -208,32 +188,12 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
       if (error instanceof StorytellingUserNotFoundError) {
         return res.status(404).json({ error: error.message, traceId });
       }
-      if (error instanceof StorytellingModelTimeoutError) {
-        return res.status(504).json({
-          error: "Storytelling generation timed out",
-          traceId,
-          timeoutMs: error.timeoutMs,
-          attempt: error.attempt,
-          phase: "storytelling",
-        });
-      }
-
       if (error instanceof WebGameGenerationValidationError) {
         return res.status(422).json({
           error: "Generated webgame did not pass runtime validation",
           traceId,
           attempts: error.attempts,
           latestErrorSummary: error.errorSummary,
-        });
-      }
-
-      if (error instanceof WebGameValidationTimeoutError) {
-        return res.status(504).json({
-          error: "Webgame validation timed out",
-          traceId,
-          timeoutMs: error.timeoutMs,
-          phase: error.phase,
-          hint: "Increase GEN_ENGINE_TOTAL_TIMEOUT_MS for larger generations.",
         });
       }
 

@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PINO'S VOLCANO VELOCITY</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        canvas {
+            background-color: #110000;
+            border: 4px solid #5a0000;
+            box-shadow: 0 0 30px #ff3300, inset 0 0 20px #ff0000;
+        }
+    </style>
+</head>
+<body>
+
+<canvas id="game" width="640" height="640"></canvas>
+
+<script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+
+    // Game Constants
+    const TILE = 40;
+    const COLS = 16;
+    const ROWS = 16;
+    const WIDTH = 640;
+    const HEIGHT = 640;
+    
+    // Y-Coordinates for Zones
+    const ROW_VENTS = 1;      // y = 40
+    const ROW_LAVA_START = 2; // y = 80
+    const ROW_LAVA_END = 6;   // y = 240
+    const ROW_SAFE_MID = 7;   // y = 280
+    const ROW_DEBRIS_START= 8;// y = 320
+    const ROW_DEBRIS_END = 12;// y = 480
+    const ROW_SAFE_START = 13;// y = 520
+
+    // Game State
+    let state = 'START'; // START, PLAY, DEATH, LEVEL_UP, GAMEOVER
+    let score = 0;
+    let lives = 3;
+    let level = 1;
+    let timerMax = 3600; // 60 seconds at 60fps
+    let timer = timerMax;
+    let frames = 0;
+    let maxRowReached = ROW_SAFE_START;
+
+    // Entities
+    let player = { x: 0, y: 0, width: 24, height: 24, dead: false };
+    let entities = [];
+    let vents = [];
+    let particles = [];
+
+    // Keys
+    const keys = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+    let keyHandled = { ArrowUp: false, ArrowDown: false, ArrowLeft: false, ArrowRight: false };
+
+    // Input Handling
+    window.addEventListener('keydown', (e) => {
+        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(e.key)) {
+            e.preventDefault();
+        }
+        
+        if (state === 'START' || state === 'GAMEOVER') {
+            if (e.key === ' ') {
+                if(state === 'GAMEOVER') { score = 0; lives = 3; level = 1; }
+                initLevel();
+                state = 'PLAY';
+            }
+            return;
+        }
+
+        if (state === 'PLAY' && !player.dead) {
+            if (keys.hasOwnProperty(e.key) && !keyHandled[e.key]) {
+                keys[e.key] = true;
+                keyHandled[e.key] = true;
+                movePlayer(e.key);
+            }
+        }
+    });
+
+    window.addEventListener('keyup', (e) => {
+        if (keys.hasOwnProperty(e.key)) {
+            keys[e.key] = false;
+            keyHandled[e.key] = false;
+        }
+    });
+
+    function resetPlayer() {
+        player.x = 7 * TILE + (TILE / 2) - (player.width / 2);
+        player.y = ROW_SAFE_START * TILE + (TILE / 2) - (player.height / 2);
+        player.dead = false;
+        maxRowReached = ROW_SAFE_START;
+        timer = timerMax;
+    }
+
+    function initLevel() {
+        entities = [];
+        vents = [];
+        
+        // Setup Vents (Safe Zones)
+        const ventCols = [1, 4, 7, 10, 13];
+        ventCols.forEach(col => {
+            vents.push({ x: col * TILE, y: ROW_VENTS * TILE, width: TILE, height: TILE, filled: false });
+        });
+
+        // Setup Moving Entities
+        const speedMult = 1 + (level * 0.15);
+        const laneConfigs = [
+            // Debris Lanes (Bottom)
+            { row: 12, type: 'debris', speed: -2, width: 40, spacing: 120 },
+            { row: 11, type: 'debris', speed: 1.5, width: 40, spacing: 160 },
+            { row: 10, type: 'debris', speed: -2.5, width: 80, spacing: 220 }, // large boulders
+            { row: 9, type: 'debris', speed: 3, width: 40, spacing: 100 },
+            { row: 8, type: 'debris', speed: -1.5, width: 40, spacing: 140 },
+            
+            // Lava Raft Lanes (Top)
+            { row: 6, type: 'raft', speed: -1.5, width: 120, spacing: 180 },
+            { row: 5, type: 'raft', speed: 2, width: 80, spacing: 120 },
+            { row: 4, type: 'raft', speed: -3, width: 160, spacing: 250 },
+            { row: 3, type: 'raft', speed: 1.8, width: 80, spacing: 140 },
+            { row: 2, type: 'raft', speed: -2.2, width: 120, spacing: 160 }
+        ];
+
+        laneConfigs.forEach(config => {
+            let x = 0;
+            while (x < WIDTH + config.spacing) {
+                entities.push({
+                    x: x,
+                    y: config.row * TILE,
+                    width: config.width,
+                    height: TILE,
+                    speed: config.speed * speedMult,
+                    type: config.type,
+                    animOffset: Math.random() * 100
+                });
+                x += config.width + config.spacing;
+            }
+        });
+
+        resetPlayer();
+    }
+
+    function movePlayer(key) {
+        let prevY = player.y;
+        
+        if (key === 'ArrowUp') player.y -= TILE;
+        if (key === 'ArrowDown') player.y += TILE;
+        if (key === 'ArrowLeft') player.x -= TILE;
+        if (key === 'ArrowRight') player.x += TILE;
+
+        // Boundaries
+        if (player.x < 0) player.x = 0;
+        if (player.x > WIDTH - player.width) player.x = WIDTH - player.width;
+        if (player.y > ROW_SAFE_START * TILE + (TILE/2) - (player.height/2)) player.y = ROW_SAFE_START * TILE + (TILE/2) - (player.height/2);
+
+        // Scoring for moving forward
+        let currentRow = Math.floor(player.y / TILE);
+        if (currentRow < maxRowReached && currentRow > ROW_VENTS) {
+            maxRowReached = currentRow;
+            score += 10;
+        }
+
+        // Vent Logic (Row 1)
+        if (currentRow === ROW_VENTS) {
+            let inVent = false;
+            let centerPX = player.x + player.width / 2;
+            
+            for (let v of vents) {
+                if (centerPX > v.x && centerPX < v.x + v.width) {
+                    inVent = true;
+                    if (!v.filled) {
+                        v.filled = true;
+                        score += 50;
+                        createExplosion(v.x + TILE/2, v.y + TILE/2, '#00ffff');
+                        resetPlayer();
+                        checkWin();
+                    } else {
+                        // Bounce back
+                        player.y = prevY;
+                    }
+                    break;
+                }
+            }
+            if (!inVent) {
+                // Hit the hot wall
+                die();
+            }
+        }
+    }
+
+    function checkWin() {
+        if (vents.every(v => v.filled)) {
+            state = 'LEVEL_UP';
+            score += 500;
+            setTimeout(() => {
+                level++;
+                initLevel();
+                state = 'PLAY';
+            }, 2000);
+        }
+    }
+
+    function die() {
+        if (player.dead) return;
+        player.dead = true;
+        createExplosion(player.x + player.width/2, player.y + player.height/2, '#ffaa00');
+        lives--;
+        
+        state = 'DEATH';
+        setTimeout(() => {
+            if (lives <= 0) {
+                state = 'GAMEOVER';
+            } else {
+                resetPlayer();
+                state = 'PLAY';
+            }
+        }, 1500);
+    }
+
+    function createExplosion(x, y, color) {
+        for(let i=0; i<30; i++) {
+            particles.push({
+                x: x, y: y,
+                vx: (Math.random() - 0.5) * 8,
+                vy: (Math.random() - 0.5) * 8,
+                life: 1,
+                color: Math.random() > 0.5 ? color : '#ff0000'
+            });
+        }
+    }
+
+    function intersect(r1, r2) {
+        // slight forgiveness hitbox
+        const padding = 6;
+        return !(r2.x >= r1.x + r1.width - padding || 
+                 r2.x + r2.width <= r1.x + padding || 
+                 r2.y >= r1.y + r1.height - padding || 
+                 r2.y + r2.height <= r1.y + padding);
+    }
+
+    function update() {
+        frames++;
+
+        // Update Particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+            let p = particles[i];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.life -= 0.03;
+            if (p.life <= 0) particles.splice(i, 1);
+        }
+
+        if (state !== 'PLAY') return;
+
+        // Timer
+        timer--;
+        if (timer <= 0) die();
+
+        // Update Entities
+        entities.forEach(ent => {
+            ent.x += ent.speed;
+            if (ent.speed > 0 && ent.x > WIDTH) ent.x = -ent.width;
+            if (ent.speed < 0 && ent.x < -ent.width) ent.x = WIDTH;
+            ent.animOffset += 0.1;
+        });
+
+        if (player.dead) return;
+
+        let currentRow = Math.floor((player.y + player.height/2) / TILE);
+        let onRaft = false;
+
+        // Collision Check
+        for (let ent of entities) {
+            if (intersect(player, ent)) {
+                if (ent.type === 'debris') {
+                    die();
+                    return;
+                } else if (ent.type === 'raft') {
+                    onRaft = true;
+                    player.x += ent.speed;
+                }
+            }
+        }
+
+        // Lava Check
+        if (currentRow >= ROW_LAVA_START && currentRow <= ROW_LAVA_END) {
+            if (!onRaft) die();
+        }
+
+        // Screen boundaries while on raft
+        if (player.x < -player.width/2 || player.x > WIDTH - player.width/2) {
+            die();
+        }
+    }
+
+    function drawRect(x, y, w, h, color) {
+        ctx.fillStyle = color;
+        ctx.fillRect(x, y, w, h);
+    }
+
+    function draw() {
+        // Clear & Background
+        ctx.fillStyle = '#0a0000';
+        ctx.fillRect(0, 0, WIDTH, HEIGHT);
+
+        // Draw HUD Area Top
+        drawRect(0, 0, WIDTH, TILE, '#000');
+        
+        // Draw Vent Wall (Row 1)
+        drawRect(0, TILE, WIDTH, TILE, '#220000');
+        for(let i=0; i<WIDTH; i+=20) {
+            ctx.fillStyle = '#3a0000';
+            ctx.beginPath();
+            ctx.moveTo(i, TILE);
+            ctx.lineTo(i+10, TILE+TILE);
+            ctx.lineTo(i+20, TILE);
+            ctx.fill();
+        }
+
+        // Draw Lava River (Rows 2-6)
+        let lavaGrad = ctx.createLinearGradient(0, ROW_LAVA_START*TILE, 0, (ROW_LAVA_END+1)*TILE);
+        lavaGrad.addColorStop(0, '#550000');
+        lavaGrad.addColorStop(0.5, '#aa2200');
+        lavaGrad.addColorStop(1, '#550000');
+        drawRect(0, ROW_LAVA_START*TILE, WIDTH, 5*TILE, lavaGrad);
+        
+        // Animated lava waves
+        ctx.fillStyle = 'rgba(255, 100, 0, 0.2)';
+        for(let i=0; i<10; i++) {
+            let waveX = (frames + i*100) % (WIDTH+200) - 100;
+            ctx.beginPath();
+            ctx.arc(waveX, ROW_LAVA_START*TILE + (i%5)*TILE + 20, 30, 0, Math.PI*2);
+            ctx.fill();
+        }
+
+        // Draw Safe Mid (Row 7)
+        drawRect(0, ROW_SAFE_MID*TILE, WIDTH, TILE, '#1a0d00');
+        ctx.strokeStyle = '#ff3300';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, ROW_SAFE_MID*TILE, WIDTH, TILE);
+
+        // Draw Debris Road (Rows 8-12)
+        drawRect(0, ROW_DEBRIS_START*TILE, WIDTH, 5*TILE, '#110000');
+        ctx.strokeStyle = '#330000';
+        ctx.lineWidth = 1;
+        for(let i=ROW_DEBRIS_START; i<=ROW_DEBRIS_END; i++) {
+            ctx.beginPath();
+            ctx.moveTo(0, i*TILE);
+            ctx.lineTo(WIDTH, i*TILE);
+            ctx.stroke();
+        }
+
+        // Draw Start Safe Bank (Row 13)
+        drawRect(0, ROW_SAFE_START*TILE, WIDTH, TILE, '#1a0d00');
+        ctx.strokeStyle = '#ff3300';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(0, ROW_SAFE_START*TILE, WIDTH, TILE);
+
+        // Draw Bottom HUD Area
+        drawRect(0, 14*TILE, WIDTH, 2*TILE, '#000');
+
+        // Draw Vents
+        vents.forEach(v => {
+            if (v.filled) {
+                ctx.fillStyle = '#00ffff';
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#00ffff';
+                drawHovercraft(v.x + v.width/2, v.y + v.height/2, 1);
+                ctx.shadowBlur = 0;
+            } else {
+                ctx.fillStyle = '#001133';
+                ctx.fillRect(v.x+2, v.y+2, v.width-4, v.height-4);
+                ctx.strokeStyle = '#00aaff';
+                ctx.strokeRect(v.x+2, v.y+2, v.width-4, v.height-4);
+            }
+        });
+
+        // Draw Entities
+        entities.forEach(ent => {
+            if (ent.type === 'debris') {
+                // Burning Boulders
+                ctx.fillStyle = '#ff3300';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#ff0000';
+                ctx.beginPath();
+                let cx = ent.x + ent.width/2;
+                let cy = ent.y + ent.height/2;
+                let radius = (ent.height/2) - 4;
+                ctx.arc(cx, cy, radius, 0, Math.PI*2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                // Magma Core
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.arc(cx + Math.cos(ent.animOffset)*5, cy + Math.sin(ent.animOffset)*5, radius-6, 0, Math.PI*2);
+                ctx.fill();
+                
+                // Jagged details
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(cx-10, cy); ctx.lineTo(cx, cy+10); ctx.lineTo(cx+10, cy-5);
+                ctx.stroke();
+
+            } else if (ent.type === 'raft') {
+                // Pumice Rafts
+                ctx.fillStyle = '#2a1510';
+                ctx.shadowBlur = 5;
+                ctx.shadowColor = '#ff3300';
+                ctx.beginPath();
+                ctx.roundRect(ent.x, ent.y + 4, ent.width, ent.height - 8, 8);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                // Glowing cracks
+                ctx.strokeStyle = '#ff4400';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(ent.x + 10, ent.y + 10);
+                ctx.lineTo(ent.x + 20, ent.y + 25);
+                ctx.lineTo(ent.x + 40, ent.y + 15);
+                ctx.stroke();
+            }
+        });
+
+        // Draw Particles
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 3 + p.life*2, 0, Math.PI*2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        });
+
+        // Draw Player
+        if (!player.dead) {
+            drawHovercraft(player.x + player.width/2, player.y + player.height/2, 1);
+        }
+
+        drawHUD();
+
+        // Draw Overlays
+        ctx.textAlign = 'center';
+        if (state === 'START') {
+            ctx.fillStyle = 'rgba(0,0,0,0.8)';
+            ctx.fillRect(0,0,WIDTH,HEIGHT);
+            ctx.fillStyle = '#ffaa00';
+            ctx.font = 'bold 40px Courier New';
+            ctx.shadowBlur = 10; ctx.shadowColor = '#ff0000';
+            ctx.fillText("PINO'S VOLCANO VELOCITY", WIDTH/2, HEIGHT/2 - 40);
+            ctx.fillStyle = '#fff';
+            ctx.font = '20px Courier New';
+            ctx.shadowBlur = 0;
+            ctx.fillText("ARROW KEYS to Hop. Dodge Magma.", WIDTH/2, HEIGHT/2 + 10);
+            ctx.fillText("Ride Pumice Rafts. Fill 5 Vents.", WIDTH/2, HEIGHT/2 + 40);
+            ctx.fillStyle = '#00ffff';
+            if (Math.floor(frames/30) % 2 === 0) {
+                ctx.fillText("PRESS SPACE TO RACE", WIDTH/2, HEIGHT/2 + 90);
+            }
+        } else if (state === 'GAMEOVER') {
+            ctx.fillStyle = 'rgba(50,0,0,0.8)';
+            ctx.fillRect(0,0,WIDTH,HEIGHT);
+            ctx.fillStyle = '#ff0000';
+            ctx.font = 'bold 50px Courier New';
+            ctx.fillText("INCINERATED", WIDTH/2, HEIGHT/2 - 20);
+            ctx.fillStyle = '#fff';
+            ctx.font = '20px Courier New';
+            ctx.fillText(`FINAL SCORE: ${score}`, WIDTH/2, HEIGHT/2 + 20);
+            if (Math.floor(frames/30) % 2 === 0) {
+                ctx.fillText("PRESS SPACE TO RESTART", WIDTH/2, HEIGHT/2 + 70);
+            }
+        } else if (state === 'LEVEL_UP') {
+            ctx.fillStyle = 'rgba(0,255,255,0.3)';
+            ctx.fillRect(0,0,WIDTH,HEIGHT);
+            ctx.fillStyle = '#00ffff';
+            ctx.font = 'bold 40px Courier New';
+            ctx.fillText(`ZONE ${level} SECURED!`, WIDTH/2, HEIGHT/2);
+            ctx.fillStyle = '#fff';
+            ctx.font = '20px Courier New';
+            ctx.fillText("HEAT INCREASING...", WIDTH/2, HEIGHT/2 + 40);
+        }
+    }
+
+    function drawHovercraft(cx, cy, scale) {
+        ctx.save();
+        ctx.translate(cx, cy);
+        ctx.scale(scale, scale);
+        
+        // Thruster glow
+        ctx.fillStyle = '#ffaa00';
+        ctx.beginPath();
+        ctx.arc(0, 12, 6 + Math.random()*3, 0, Math.PI*2);
+        ctx.fill();
+
+        // Ship Body
+        ctx.fillStyle = '#00ffff';
+        ctx.beginPath();
+        ctx.moveTo(0, -14); // Nose
+        ctx.lineTo(12, 10); // Right wing
+        ctx.lineTo(0, 4);   // Inner engine
+        ctx.lineTo(-12, 10);// Left wing
+        ctx.closePath();
+        ctx.fill();
+        
+        // Cockpit
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.moveTo(0, -6);
+        ctx.lineTo(4, 2);
+        ctx.lineTo(-4, 2);
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    function drawHUD() {
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 20px Courier New';
+        ctx.fillStyle = '#ffaa00';
+        
+        // Top HUD
+        ctx.fillText(`SCORE:${score.toString().padStart(5, '0')}`, 10, 28);
+        ctx.textAlign = 'right';
+        ctx.fillText(`LEVEL:${level}`, WIDTH - 10, 28);
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#00ffff';
+        ctx.fillText("PINO", WIDTH/2, 28);
+
+        // Bottom HUD (Timer & Lives)
+        let bottomY = HEIGHT - 40;
+        
+        // Lives (Flames)
+        ctx.fillStyle = '#ff3300';
+        ctx.textAlign = 'left';
+        ctx.fillText("LIVES:", 10, bottomY + 28);
+        for(let i=0; i<lives; i++) {
+            drawFlame(90 + i*30, bottomY + 22);
+        }
+
+        // Timer (Heat Gauge)
+        ctx.textAlign = 'right';
+        ctx.fillStyle = '#fff';
+        ctx.fillText("HEAT:", WIDTH - 220, bottomY + 28);
+        
+        let timerW = 200;
+        let p = timer / timerMax;
+        ctx.fillStyle = '#330000';
+        ctx.fillRect(WIDTH - 210, bottomY + 12, timerW, 20);
+        
+        let barColor = p > 0.5 ? '#00ff00' : (p > 0.25 ? '#ffff00' : '#ff0000');
+        if (p < 0.25 && Math.floor(frames/10)%2 === 0) barColor = '#fff'; // Flash red/white
+        
+        ctx.fillStyle = barColor;
+        ctx.fillRect(WIDTH - 210, bottomY + 12, timerW * p, 20);
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 2;
+        ctx.strokeRect(WIDTH - 210, bottomY + 12, timerW, 20);
+    }
+
+    function drawFlame(x, y) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.fillStyle = '#ffaa00';
+        ctx.beginPath();
+        ctx.moveTo(0, -10);
+        ctx.quadraticCurveTo(8, 0, 0, 10);
+        ctx.quadraticCurveTo(-8, 0, 0, -10);
+        ctx.fill();
+        ctx.fillStyle = '#ff3300';
+        ctx.beginPath();
+        ctx.moveTo(0, -4);
+        ctx.quadraticCurveTo(4, 2, 0, 8);
+        ctx.quadraticCurveTo(-4, 2, 0, -4);
+        ctx.fill();
+        ctx.restore();
+    }
+
+    // Main Game Loop
+    function loop() {
+        update();
+        draw();
+        requestAnimationFrame(loop);
+    }
+
+    // Start
+    loop();
+
+</script>
+<script>
+(() => {
+  const size = 640;
+  const canvases = document.querySelectorAll("canvas");
+  canvases.forEach((canvas) => {
+    canvas.width = size;
+    canvas.height = size;
+    canvas.style.width = size + "px";
+    canvas.style.height = size + "px";
+    canvas.style.display = canvas.style.display || "block";
+    canvas.style.margin = canvas.style.margin || "0 auto";
+  });
+})();
+</script>
+</body>
+</html>
