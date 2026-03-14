@@ -1,12 +1,16 @@
 import express, { Request, Response } from "express";
+import { createServer } from "node:http";
+import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { logError, logInfo } from "./core/logger.js";
 import { createRootRoutes } from "./routes.js";
+import { initSocket } from "./socket.js";
 
 dotenv.config();
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 app.use((req, res, next) => {
   const startedAt = Date.now();
@@ -46,7 +50,10 @@ async function start() {
     await mongoose.connect(MONGODB_URI);
     logInfo("mongodb_connected");
 
-    app.listen(PORT, () => {
+    const httpServer = createServer(app);
+    initSocket(httpServer);
+
+    httpServer.listen(PORT, () => {
       logInfo("server_started", { port: PORT });
     });
   } catch (error) {

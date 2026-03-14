@@ -28,7 +28,8 @@ const MAX_WEBGAME_SIZE = 2048;
 export function createAIRoutes(options: AIRoutesOptions): Router {
   const router = Router();
   const genEngineService =
-    options.genEngineService ?? new GenEngineService({ apiKey: options.apiKey });
+    options.genEngineService ??
+    new GenEngineService({ apiKey: options.apiKey });
   const verifiedWebGameService =
     options.verifiedWebGameService ??
     new VerifiedWebGameService({
@@ -48,7 +49,9 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
     try {
       const prompt = req.body?.prompt;
       if (!prompt || typeof prompt !== "string") {
-        return res.status(400).json({ error: "Missing prompt in request body" });
+        return res
+          .status(400)
+          .json({ error: "Missing prompt in request body" });
       }
 
       const result = await genEngineService.generateFromPrompt(prompt);
@@ -115,34 +118,41 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
       }
 
       logError("ai_gen_engine_webgame_route_error", error, { traceId });
-      return res.status(500).json({ error: "Failed to generate webgame HTML", traceId });
-    }
-  });
-
-  router.post("/storytelling_engine/game-concept", async (req: Request, res: Response) => {
-    const userId = req.body?.userId;
-    if (!userId || typeof userId !== "string") {
-      return res.status(400).json({ error: "Missing userId in request body" });
-    }
-
-    try {
-      logInfo("ai_storytelling_engine_request_received", { userId });
-      const description =
-        await storytellingEngineService.generatePersonalizedRetroGameDescription(
-          userId,
-        );
-      return res.type("text/plain").send(description);
-    } catch (error) {
-      if (error instanceof StorytellingUserNotFoundError) {
-        return res.status(404).json({ error: error.message });
-      }
-
-      logError("ai_storytelling_engine_route_error", error, { userId });
       return res
         .status(500)
-        .json({ error: "Failed to generate personalized game concept" });
+        .json({ error: "Failed to generate webgame HTML", traceId });
     }
   });
+
+  router.post(
+    "/storytelling_engine/game-concept",
+    async (req: Request, res: Response) => {
+      const userId = req.body?.userId;
+      if (!userId || typeof userId !== "string") {
+        return res
+          .status(400)
+          .json({ error: "Missing userId in request body" });
+      }
+
+      try {
+        logInfo("ai_storytelling_engine_request_received", { userId });
+        const description =
+          await storytellingEngineService.generatePersonalizedRetroGameDescription(
+            userId,
+          );
+        return res.type("text/plain").send(description);
+      } catch (error) {
+        if (error instanceof StorytellingUserNotFoundError) {
+          return res.status(404).json({ error: error.message });
+        }
+
+        logError("ai_storytelling_engine_route_error", error, { userId });
+        return res
+          .status(500)
+          .json({ error: "Failed to generate personalized game concept" });
+      }
+    },
+  );
 
   router.post("/game-generation", async (req: Request, res: Response) => {
     const traceId = randomUUID();
@@ -202,7 +212,10 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
         });
       }
 
-      logError("ai_game_generation_workflow_route_error", error, { traceId, userId });
+      logError("ai_game_generation_workflow_route_error", error, {
+        traceId,
+        userId,
+      });
       return res.status(500).json({
         error: "Failed to generate and store game",
         traceId,
