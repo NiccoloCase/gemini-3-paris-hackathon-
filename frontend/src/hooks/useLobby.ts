@@ -25,7 +25,11 @@ export function LobbyProvider({ username, children }: { username: string; childr
   useEffect(() => {
     if (!username) return;
 
-    const socket = io("http://localhost:3000");
+    const socketUrl =
+      import.meta.env.VITE_SOCKET_URL || (import.meta.env.DEV ? "http://localhost:3000" : window.location.origin);
+    const socket = io(socketUrl, {
+      transports: ["websocket", "polling"],
+    });
     socketRef.current = socket;
 
     socket.on("connect", () => {

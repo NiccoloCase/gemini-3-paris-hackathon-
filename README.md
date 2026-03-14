@@ -37,3 +37,17 @@ Arcadia is an AI arcade where each session generates a playable mini-game in rea
 3. Start services:
    - Backend: `npm run dev` (port `3000`)
    - Frontend: `npm run dev` (port `8080`, proxies `/ai` to backend)
+
+## Deploy On Railway (Single Service)
+
+Railway can deploy both frontend and backend from this repository as one service:
+
+1. Create Railway service from this repo root.
+2. Set backend env vars in Railway:
+   - `MONGODB_URI`
+   - `GEMINI_API_KEY`
+3. Railway uses `railway.toml`:
+   - Build: installs backend + frontend deps, builds frontend then backend
+   - Start: runs backend in production mode
+
+In production, the backend serves `frontend/dist` and keeps `/ai/*` routes on the same domain, so no separate frontend deployment is needed.

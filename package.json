@@ -1,0 +1,11 @@
+{
+  "name": "arcadia-monorepo",
+  "private": true,
+  "scripts": {
+    "railway:install": "npm --prefix backend install && npm --prefix frontend install",
+    "railway:build": "npm --prefix frontend run build && npm --prefix backend run build",
+    "railway:start": "NODE_ENV=production node backend/dist/index.js",
+    "build": "npm run railway:build",
+    "start": "npm run railway:start"
+  }
+}
