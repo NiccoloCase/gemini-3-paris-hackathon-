@@ -76,12 +76,16 @@ export default function WelcomePage() {
           transition={{ duration: 0.6, ease: 'easeOut' }}
         >
           <h1
-            className="font-display font-black tracking-[0.15em] glitch mx-auto w-fit"
-            style={{ fontSize: 'clamp(3.5rem, 12vw, 6rem)', textIndent: '0.15em' }}
+            className="font-display font-black glitch flex items-center justify-center"
+            style={{ fontSize: 'clamp(3.5rem, 12vw, 6rem)', letterSpacing: '0.15em' }}
           >
-            <span className="neon-cyan">ARC</span>
+            <span className="neon-cyan" style={{ marginLeft: '0.15em' }}>A</span>
+            <span className="neon-cyan">R</span>
+            <span className="neon-cyan">C</span>
             <span className="neon-magenta">A</span>
-            <span className="neon-cyan">DIA</span>
+            <span className="neon-cyan">D</span>
+            <span className="neon-cyan">I</span>
+            <span className="neon-cyan">A</span>
           </h1>
           <div className="h-8 mt-3 flex items-center justify-center">
             <p className="font-pixel text-[12px] text-neon-yellow tracking-widest">
