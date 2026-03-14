@@ -1,0 +1,7 @@
+
+google-genai
+pymongo
+internetarchive
+moviepy
+pandas
+python-dotenv
