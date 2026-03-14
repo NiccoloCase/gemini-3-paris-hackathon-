@@ -7,6 +7,7 @@ import {
   WebGameGenerationValidationError,
   WebGameValidationTimeoutError,
 } from "./gen_engine/verified-webgame.service.js";
+import { createChatRoutes } from "./chat/routes.js";
 
 type AIRoutesOptions = {
   apiKey: string;
@@ -27,6 +28,8 @@ export function createAIRoutes(options: AIRoutesOptions): Router {
     new VerifiedWebGameService({
       genEngineService,
     });
+
+  router.use("/chat", createChatRoutes({ apiKey: options.apiKey }));
 
   router.post("/gen_engine", async (req: Request, res: Response) => {
     try {

@@ -1,4 +1,5 @@
 import express, { Request, Response } from "express";
+import cors from "cors";
 import dotenv from "dotenv";
 import mongoose from "mongoose";
 import { logError, logInfo } from "./core/logger.js";
@@ -7,6 +8,7 @@ import { createRootRoutes } from "./routes.js";
 dotenv.config();
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 app.use((req, res, next) => {
   const startedAt = Date.now();
