@@ -3,11 +3,11 @@
 export const MOCK_USERS = [
   { id: '1', username: 'NeonKnight', avatar: '🤖', status: 'Playing' as const, game: 'Pixel Temple Breakout', genre: 'Action', vibe: 'Neon Sci-fi', x: 25, y: 35 },
   { id: '2', username: 'MythicMina', avatar: '🧝', status: 'Idle' as const, game: 'Shadow Labyrinth', genre: 'Puzzle', vibe: 'Fantasy', x: 55, y: 45 },
-  { id: '3', username: 'ByteRunner', avatar: '👾', status: 'In Match' as const, game: 'Neon Dash', genre: 'Racing', vibe: 'Cyberpunk', x: 70, y: 25 },
+  { id: '3', username: 'ByteRunner', avatar: '👾', status: 'Playing' as const, game: 'Neon Dash', genre: 'Racing', vibe: 'Cyberpunk', x: 70, y: 25 },
   { id: '4', username: 'PixelWitch', avatar: '🧙', status: 'Generating Game' as const, game: null, genre: 'Horror', vibe: 'Dark Fantasy', x: 40, y: 60 },
   { id: '5', username: 'CosmicLeo', avatar: '🦁', status: 'Playing' as const, game: 'Star Serpent', genre: 'Arcade', vibe: 'Cosmic', x: 15, y: 55 },
   { id: '6', username: 'GlitchGirl', avatar: '💀', status: 'Idle' as const, game: 'Void Breaker', genre: 'Shooter', vibe: 'Glitchcore', x: 80, y: 50 },
-  { id: '7', username: 'ArcadeKing', avatar: '👑', status: 'In Match' as const, game: 'Retro Rivals', genre: 'Fighting', vibe: 'Retro', x: 35, y: 20 },
+  { id: '7', username: 'ArcadeKing', avatar: '👑', status: 'Generating Game' as const, game: null, genre: 'Fighting', vibe: 'Retro', x: 35, y: 20 },
   { id: '8', username: 'ZenCoder', avatar: '🧘', status: 'Idle' as const, game: 'Calm Circuit', genre: 'Chill', vibe: 'Cozy', x: 60, y: 70 },
 ];
 
