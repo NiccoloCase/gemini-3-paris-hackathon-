@@ -5,7 +5,6 @@ import { useApp } from '@/lib/AppContext';
 const NAV_ITEMS = [
   { path: '/lobby', label: 'LOBBY' },
   { path: '/play',  label: 'PLAY'  },
-  { path: '/friends', label: 'SQUAD' },
   { path: '/profile', label: 'PROFILE' },
 ];
 

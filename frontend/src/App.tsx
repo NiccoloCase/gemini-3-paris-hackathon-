@@ -10,7 +10,6 @@ import Onboarding from "./pages/Onboarding";
 import Generating from "./pages/Generating";
 import Lobby from "./pages/Lobby";
 import Play from "./pages/Play";
-import Friends from "./pages/Friends";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
@@ -27,7 +26,6 @@ function AppRoutes() {
         <Route path="/generating" element={<Generating />} />
         <Route path="/lobby" element={<Lobby />} />
         <Route path="/play" element={<Play />} />
-        <Route path="/friends" element={<Friends />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
