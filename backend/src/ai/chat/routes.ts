@@ -65,7 +65,7 @@ export function createChatRoutes(options: ChatRoutesOptions): Router {
         { upsert: true, new: true }
       );
 
-      return res.json({ preferences: user.preferences });
+      return res.json({ preferences: user.preferences, userId: String(user._id) });
     } catch (error) {
       logError("chat_complete_error", error);
       return res.status(500).json({ error: "Failed to extract preferences" });
