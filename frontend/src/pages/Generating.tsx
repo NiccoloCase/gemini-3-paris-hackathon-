@@ -1,25 +1,30 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { GENERATION_STEPS, MOCK_GENERATED_GAME } from '@/lib/mockData';
+import { useApp } from '@/lib/AppContext';
+
+const STEPS = [
+  'Analyzing your vibe...',
+  'Designing your world...',
+  'Building game mechanics...',
+  'Rendering visuals...',
+  'Final touches...',
+];
 
 export default function GeneratingPage() {
   const navigate = useNavigate();
+  const { userId, setGameHtml, setGameName } = useApp();
   const [currentStep, setCurrentStep] = useState(0);
   const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
   const [dots, setDots] = useState('');
 
+  // Animate steps while waiting
   useEffect(() => {
-    let timeout: NodeJS.Timeout;
-    const run = (step: number) => {
-      if (step < GENERATION_STEPS.length) {
-        timeout = setTimeout(() => { setCurrentStep(step + 1); run(step + 1); }, GENERATION_STEPS[step].duration);
-      } else {
-        timeout = setTimeout(() => setDone(true), 800);
-      }
-    };
-    run(0);
-    return () => clearTimeout(timeout);
+    const interval = setInterval(() => {
+      setCurrentStep(prev => (prev < STEPS.length - 1 ? prev + 1 : prev));
+    }, 8000);
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -27,9 +32,48 @@ export default function GeneratingPage() {
     return () => clearInterval(t);
   }, []);
 
-  const pct = Math.round((currentStep / GENERATION_STEPS.length) * 100);
+  // Call the real game generation endpoint
+  useEffect(() => {
+    if (!userId) {
+      setError('No user profile found. Please redo onboarding.');
+      return;
+    }
+
+    let cancelled = false;
+
+    async function generate() {
+      try {
+        const res = await fetch('/ai/game-generation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId }),
+        });
+
+        if (cancelled) return;
+
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          setError(data.error || 'Generation failed. Please try again.');
+          return;
+        }
+
+        const data = await res.json();
+        setGameHtml(data.html);
+        setGameName(data.gameDescription?.split('\n')[0]?.slice(0, 60) || 'Your Game');
+        setCurrentStep(STEPS.length);
+        setTimeout(() => { if (!cancelled) setDone(true); }, 600);
+      } catch {
+        if (!cancelled) setError('Connection error. Please try again.');
+      }
+    }
+
+    generate();
+    return () => { cancelled = true; };
+  }, [userId]);
+
+  const pct = done ? 100 : Math.round((currentStep / STEPS.length) * 90);
   const filled = Math.round(pct / 5);
-  const bar = '█'.repeat(filled) + '░'.repeat(20 - filled);
+  const bar = '\u2588'.repeat(filled) + '\u2591'.repeat(20 - filled);
 
   return (
     <div className="min-h-screen bg-black pixel-grid crt-flicker flex items-center justify-center p-6 relative overflow-hidden">
@@ -37,7 +81,24 @@ export default function GeneratingPage() {
 
       <div className="relative z-10 w-full max-w-md">
         <AnimatePresence mode="wait">
-          {!done ? (
+          {error ? (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="text-center"
+            >
+              <div className="font-pixel text-[10px] text-red-400 tracking-widest mb-6 border border-red-400/30 px-4 py-3">
+                {error}
+              </div>
+              <button
+                onClick={() => navigate('/onboarding')}
+                className="font-pixel text-[9px] tracking-widest px-6 py-3 border border-primary text-primary hover:bg-primary hover:text-black transition-colors"
+              >
+                RETRY ONBOARDING
+              </button>
+            </motion.div>
+          ) : !done ? (
             <motion.div
               key="loading"
               initial={{ opacity: 0 }}
@@ -45,7 +106,6 @@ export default function GeneratingPage() {
               exit={{ opacity: 0, scale: 0.95 }}
               className="text-center"
             >
-              {/* Pulsing icon */}
               <motion.div
                 animate={{ scale: [1, 1.08, 1], opacity: [0.8, 1, 0.8] }}
                 transition={{ duration: 1.4, repeat: Infinity }}
@@ -58,9 +118,8 @@ export default function GeneratingPage() {
                 GENERATING YOUR WORLD
               </h2>
 
-              {/* Steps */}
               <div className="text-left space-y-3 mb-8 font-terminal text-xl">
-                {GENERATION_STEPS.map((step, i) => (
+                {STEPS.map((step, i) => (
                   <motion.div
                     key={i}
                     initial={{ opacity: 0.2 }}
@@ -75,13 +134,12 @@ export default function GeneratingPage() {
                     <span className={
                       i < currentStep ? 'text-neon-green' : i === currentStep ? 'text-primary' : 'text-muted-foreground'
                     }>
-                      {step.text}{i === currentStep ? dots : ''}
+                      {step}{i === currentStep ? dots : ''}
                     </span>
                   </motion.div>
                 ))}
               </div>
 
-              {/* Progress bar */}
               <div className="font-pixel text-[9px] text-primary mb-2 text-center">{pct}%</div>
               <div className="font-pixel text-[9px] neon-cyan tracking-widest text-center">[{bar}]</div>
             </motion.div>
@@ -102,31 +160,16 @@ export default function GeneratingPage() {
                 ★ GAME READY ★
               </motion.div>
 
-              <div className="border-2 border-primary p-6 text-left mb-6 border-glow-cyan">
+              <div className="border-2 border-primary p-6 mb-6 border-glow-cyan text-center">
                 <div className="font-pixel text-[7px] text-muted-foreground mb-3 tracking-widest">GENERATED FOR YOU</div>
-                <h3 className="font-display font-bold text-xl neon-cyan tracking-wider mb-1">{MOCK_GENERATED_GAME.title}</h3>
-                <p className="font-terminal text-lg text-muted-foreground mb-5">
-                  Inspired by {MOCK_GENERATED_GAME.inspiration}
-                </p>
-
-                <div className="grid grid-cols-2 gap-3 font-terminal">
-                  {[
-                    { label: 'THEME', value: MOCK_GENERATED_GAME.theme },
-                    { label: 'DIFFICULTY', value: MOCK_GENERATED_GAME.difficulty },
-                  ].map(({ label, value }) => (
-                    <div key={label} className="border border-muted p-3">
-                      <div className="font-pixel text-[7px] text-muted-foreground mb-1">{label}</div>
-                      <div className="text-lg text-foreground">{value}</div>
-                    </div>
-                  ))}
-                </div>
+                <h3 className="font-display font-bold text-xl neon-cyan tracking-wider">Your Arcade World</h3>
               </div>
 
               <button
                 onClick={() => navigate('/lobby')}
                 className="w-full bg-primary text-black font-pixel text-[10px] tracking-widest py-4 hover:brightness-125 active:scale-95 transition-all border-glow-cyan"
               >
-                ENTER THE ARCADE  →
+                ENTER THE ARCADE →
               </button>
             </motion.div>
           )}

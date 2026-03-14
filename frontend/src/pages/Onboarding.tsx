@@ -11,7 +11,7 @@ interface ChatMessage {
 const TOTAL_QUESTIONS = 4;
 
 export default function OnboardingPage() {
-  const { setOnboarded, username } = useApp();
+  const { setOnboarded, setUserId, username } = useApp();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
@@ -80,11 +80,13 @@ export default function OnboardingPage() {
 
   const handleGenerate = async () => {
     try {
-      await fetch('/ai/chat/complete', {
+      const res = await fetch('/ai/chat/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ history: messages, username }),
       });
+      const data = await res.json();
+      if (data.userId) setUserId(data.userId);
     } catch {
       // preferences extraction failed, continue anyway
     }

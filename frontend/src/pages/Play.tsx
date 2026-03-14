@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_GENERATED_GAME } from '@/lib/mockData';
 import { useLobby } from '@/hooks/useLobby';
+import { useApp } from '@/lib/AppContext';
 
 // Placeholder HTML game — will be replaced by LLM-generated content
 const PLACEHOLDER_GAME_HTML = `
@@ -117,14 +117,15 @@ loop();
 
 export default function PlayPage() {
   const { updateStatus } = useLobby();
+  const { gameHtml: storedHtml, gameName } = useApp();
   const navigate = useNavigate();
 
   useEffect(() => {
-    updateStatus("Playing", MOCK_GENERATED_GAME.title);
+    updateStatus("Playing", gameName || "Arcade Game");
     return () => { updateStatus("Idle"); };
   }, []);
 
-  const gameHtml = PLACEHOLDER_GAME_HTML;
+  const gameHtml = storedHtml || PLACEHOLDER_GAME_HTML;
 
   return (
     <div className="h-screen bg-black flex items-center justify-center overflow-hidden">
@@ -164,7 +165,7 @@ export default function PlayPage() {
             }}
           >
             <span className="font-pixel text-[8px] text-cyan-400/80 tracking-[0.3em]">ARCADIA</span>
-            <span className="font-pixel text-[7px] text-white/40 tracking-widest">{MOCK_GENERATED_GAME.title.toUpperCase()}</span>
+            <span className="font-pixel text-[7px] text-white/40 tracking-widest">{(gameName || 'ARCADE GAME').toUpperCase()}</span>
             <span className="font-pixel text-[8px] text-cyan-400/80 tracking-[0.3em]">P1</span>
           </motion.div>
         </div>

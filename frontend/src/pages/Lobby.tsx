@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { MOCK_GENERATED_GAME } from '@/lib/mockData';
 import type { UserStatus } from '@/lib/mockData';
 import AppShell from '@/components/AppShell';
 import { useApp } from '@/lib/AppContext';
@@ -442,6 +441,7 @@ function WalkingAvatar({
 export default function LobbyPage() {
   const navigate = useNavigate();
   const { username } = useApp();
+  const { gameName } = useApp();
   const { users, socketId } = useLobby();
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -548,7 +548,7 @@ export default function LobbyPage() {
             <div className="bg-white/[0.03] backdrop-blur-sm border border-white/[0.08] rounded-lg px-6 py-4 text-center max-w-sm w-full">
               <p className="font-pixel text-[7px] text-muted-foreground/50 tracking-[0.3em] mb-2">YOUR GAME</p>
               <h2 className="font-display text-xl sm:text-2xl tracking-wider text-foreground neon-cyan">
-                {MOCK_GENERATED_GAME.title}
+                {gameName || 'Your Game'}
               </h2>
             </div>
 
